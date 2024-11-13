@@ -1,4 +1,5 @@
 'use client';
+
 import React, { useEffect, useRef, useState } from 'react';
 import Cytoscape from 'cytoscape';
 import coseBilkent from 'cytoscape-cose-bilkent';
@@ -11,18 +12,31 @@ import klay from 'cytoscape-klay';
 
 import { Card } from '@/components/ui/card';
 
-Cytoscape.use(coseBilkent);
-Cytoscape.use(cola);
-Cytoscape.use(avsdf);
-Cytoscape.use(dagre);
-Cytoscape.use(elk);
-Cytoscape.use(fcose);
-Cytoscape.use(klay);
+// Register Cytoscape extensions
+if (typeof window !== 'undefined') {
+  coseBilkent(Cytoscape);
+  cola(Cytoscape);
+  avsdf(Cytoscape);
+  dagre(Cytoscape);
+  elk(Cytoscape);
+  fcose(Cytoscape);
+  klay(Cytoscape);
+}
+
+interface Link {
+  data: {
+    source: string;
+    target: string;
+  }
+}
+
+type LayoutName = 'chessboard' | 'cose' | 'cose-bilkent' | 'cola' | 'avsdf' | 'dagre' | 
+                 'breadthfirst' | 'elk-layered' | 'elk-mrtree' | 'fcose' | 'klay' | 'random';
 
 const KnightsGraph = () => {
-  const cyRef = useRef(null);
-  const [layout, setLayout] = useState('chessboard');
-  const [edgeStyle, setEdgeStyle] = useState('straight');
+  const cyRef = useRef<Cytoscape.Core | null>(null);
+  const [layout, setLayout] = useState<LayoutName>('chessboard');
+  const [edgeStyle, setEdgeStyle] = useState<'straight' | 'haystack' | 'bezier' | 'unbundled-bezier' | 'segments' | 'taxi'>('straight');
   const [showArrows, setShowArrows] = useState(false);
 
   const initializeCytoscape = () => {
@@ -39,8 +53,8 @@ const KnightsGraph = () => {
               label: 'data(id)',
               'text-valign': 'center',
               'text-halign': 'center',
-              'background-color': (ele) => (ele.data('isDark') ? '#B58863' : '#F0D9B5'),
-              color: (ele) => (ele.data('isDark') ? 'white' : 'black'),
+              'background-color': (ele: Cytoscape.NodeSingular) => (ele.data('isDark') ? '#B58863' : '#F0D9B5'),
+              'color': (ele: Cytoscape.NodeSingular) => (ele.data('isDark') ? 'white' : 'black'),
               'border-color': '#262D31',
               'border-width': 1,
             },
@@ -70,7 +84,7 @@ const KnightsGraph = () => {
         }
       }
 
-      const links = [];
+      const links: Link[] = [];
       const dirs = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
       nodes.forEach((node) => {
         const file = files.indexOf(node.data.id[0]);
@@ -83,9 +97,7 @@ const KnightsGraph = () => {
           if (newFile >= 0 && newFile < 8 && newRank >= 0 && newRank < 8) {
             const target = `${files[newFile]}${ranks[newRank]}`;
             if (node.data.id < target) {
-              links.push({
-                data: { source: node.data.id, target: target },
-              });
+              links.push({ data: { source: node.data.id, target: target } });
             }
           }
         });
@@ -97,34 +109,58 @@ const KnightsGraph = () => {
   };
 
   const applyLayout = () => {
-    if (cyRef.current) {
-      let layoutOptions;
+    if (!cyRef.current) return;
 
-      if (layout === 'chessboard') {
-        layoutOptions = {
-          name: 'preset',
-          positions: (node) => {
-            const id = node.id();
-            const file = id.charCodeAt(0) - 'a'.charCodeAt(0);
-            const rank = parseInt(id[1], 10) - 1;
-            return { x: file * 80, y: (7 - rank) * 80 }; // Reversed y-axis for chessboard perspective
-          },
+    if (layout === 'chessboard') {
+      const positions: {[key: string]: {x: number, y: number}} = {};
+      
+      // Pre-calculate all positions
+      cyRef.current.nodes().forEach(node => {
+        const id = node.id();
+        const file = id.charCodeAt(0) - 'a'.charCodeAt(0);
+        const rank = parseInt(id[1], 10) - 1;
+        positions[id] = {
+          x: file * 80,
+          y: (7 - rank) * 80
         };
-      } else if (layout === 'elk-layered' || layout === 'elk-mrtree') {
-        layoutOptions = {
-          name: 'elk',
-          elk: { algorithm: layout.split('-')[1] },
-          animate: true,
-        };
-      } else {
-        layoutOptions = { name: layout, animate: true };
-      }
+      });
 
+      const layoutOptions = {
+        name: 'preset' as const,
+        positions: positions,
+        fit: true
+      };
+      
       cyRef.current.layout(layoutOptions).run();
+    } 
+    else if (layout === 'elk-layered' || layout === 'elk-mrtree') {
+      const elkOptions = {
+        name: 'elk',
+        elk: { algorithm: layout.split('-')[1] },
+        fit: true
+      };
+      cyRef.current.layout(elkOptions).run();
+    }
+    else {
+      // Handle all other layouts
+      const basicOptions = {
+        name: layout,
+        fit: true,
+        padding: 30,
+        randomize: layout === 'random',
+        componentSpacing: 40,
+        nodeOverlap: 20,
+        refresh: 20,
+        nodeRepulsion: () => 4500,
+        ideaForce: () => 400
+      };
+      cyRef.current.layout(basicOptions).run();
     }
   };
 
   const updateEdgeStyle = () => {
+    if (!cyRef.current) return;
+    
     cyRef.current.style()
       .selector('edge')
       .style({
@@ -137,7 +173,11 @@ const KnightsGraph = () => {
 
   useEffect(() => {
     initializeCytoscape();
-    return () => cyRef.current?.destroy();
+    return () => {
+      if (cyRef.current) {
+        cyRef.current.destroy();
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -151,7 +191,7 @@ const KnightsGraph = () => {
   return (
     <Card className="p-4 w-full max-w-3xl mx-auto">
       <div className="text-center mb-4">
-        <h2 className="text-2xl font-bold">Knight's Move Graph</h2>
+        <h2 className="text-2xl font-bold">Knight&apos;s Move Graph</h2>
         <p className="text-sm text-gray-600">Visualization of possible knight moves on a chess board</p>
       </div>
       <div className="mb-4 text-center">
@@ -159,7 +199,7 @@ const KnightsGraph = () => {
         <select
           id="layout-select"
           value={layout}
-          onChange={(e) => setLayout(e.target.value)}
+          onChange={(e) => setLayout(e.target.value as LayoutName)}
           className="border rounded px-2 py-1"
         >
           <option value="chessboard">Chessboard</option>
@@ -181,7 +221,7 @@ const KnightsGraph = () => {
         <select
           id="edge-style-select"
           value={edgeStyle}
-          onChange={(e) => setEdgeStyle(e.target.value)}
+          onChange={(e) => setEdgeStyle(e.target.value as 'straight' | 'haystack' | 'bezier' | 'unbundled-bezier' | 'segments' | 'taxi')}
           className="border rounded px-2 py-1"
         >
           <option value="straight">Straight</option>

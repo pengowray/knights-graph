@@ -6,6 +6,9 @@ import cola from 'cytoscape-cola';
 import avsdf from 'cytoscape-avsdf';
 import dagre from 'cytoscape-dagre';
 import elk from 'cytoscape-elk';
+import fcose from 'cytoscape-fcose';
+import klay from 'cytoscape-klay';
+
 import { Card } from '@/components/ui/card';
 
 Cytoscape.use(coseBilkent);
@@ -13,11 +16,14 @@ Cytoscape.use(cola);
 Cytoscape.use(avsdf);
 Cytoscape.use(dagre);
 Cytoscape.use(elk);
+Cytoscape.use(fcose);
+Cytoscape.use(klay);
 
 const KnightsGraph = () => {
   const cyRef = useRef(null);
-  const [layout, setLayout] = useState('chessboard'); // Default to "chessboard" layout
-  const [edgeStyle, setEdgeStyle] = useState('straight'); // Default to "straight" edges
+  const [layout, setLayout] = useState('chessboard');
+  const [edgeStyle, setEdgeStyle] = useState('straight');
+  const [showArrows, setShowArrows] = useState(false);
 
   const initializeCytoscape = () => {
     if (!cyRef.current) {
@@ -44,7 +50,10 @@ const KnightsGraph = () => {
             style: {
               width: 1,
               'line-color': '#15465C',
-              'curve-style': edgeStyle === 'curved' ? 'bezier' : 'straight',
+              'curve-style': edgeStyle,
+              'source-arrow-shape': showArrows ? 'triangle' : 'none',
+              'target-arrow-shape': showArrows ? 'triangle' : 'none',
+              'arrow-scale': 0.6,
             },
           },
         ],
@@ -56,7 +65,7 @@ const KnightsGraph = () => {
       for (let i = 0; i < 8; i++) {
         for (let j = 0; j < 8; j++) {
           nodes.push({
-            data: { id: `${files[i]}${ranks[j]}`, isDark: (i + j) % 2 === 1 },
+            data: { id: `${files[i]}${ranks[j]}`, isDark: (i + j) % 2 === 0 },
           });
         }
       }
@@ -98,8 +107,14 @@ const KnightsGraph = () => {
             const id = node.id();
             const file = id.charCodeAt(0) - 'a'.charCodeAt(0);
             const rank = parseInt(id[1], 10) - 1;
-            return { x: file * 80, y: rank * 80 }; // Adjust spacing to reduce overlap
+            return { x: file * 80, y: (7 - rank) * 80 }; // Reversed y-axis for chessboard perspective
           },
+        };
+      } else if (layout === 'elk-layered' || layout === 'elk-mrtree') {
+        layoutOptions = {
+          name: 'elk',
+          elk: { algorithm: layout.split('-')[1] },
+          animate: true,
         };
       } else {
         layoutOptions = { name: layout, animate: true };
@@ -107,6 +122,17 @@ const KnightsGraph = () => {
 
       cyRef.current.layout(layoutOptions).run();
     }
+  };
+
+  const updateEdgeStyle = () => {
+    cyRef.current.style()
+      .selector('edge')
+      .style({
+        'curve-style': edgeStyle,
+        'source-arrow-shape': showArrows ? 'triangle' : 'none',
+        'target-arrow-shape': showArrows ? 'triangle' : 'none',
+      })
+      .update();
   };
 
   useEffect(() => {
@@ -119,10 +145,8 @@ const KnightsGraph = () => {
   }, [layout]);
 
   useEffect(() => {
-    if (cyRef.current) {
-      cyRef.current.style().selector('edge').style('curve-style', edgeStyle === 'curved' ? 'bezier' : 'straight').update();
-    }
-  }, [edgeStyle]);
+    updateEdgeStyle();
+  }, [edgeStyle, showArrows]);
 
   return (
     <Card className="p-4 w-full max-w-3xl mx-auto">
@@ -144,8 +168,11 @@ const KnightsGraph = () => {
           <option value="cola">Cola</option>
           <option value="avsdf">Avsdf</option>
           <option value="dagre">Dagre</option>
-          <option value="elk">ELK</option>
           <option value="breadthfirst">Breadthfirst</option>
+          <option value="elk-layered">ELK (Layered)</option>
+          <option value="elk-mrtree">ELK (mrtree)</option>
+          <option value="fcose">fCoSE</option>
+          <option value="klay">Klay</option>
           <option value="random">Random</option>
         </select>
       </div>
@@ -158,8 +185,21 @@ const KnightsGraph = () => {
           className="border rounded px-2 py-1"
         >
           <option value="straight">Straight</option>
-          <option value="curved">Curved</option>
+          <option value="taxi">Taxi</option>
+          <option value="bezier">Bezier</option>
+          <option value="unbundled-bezier">Unbundled Bezier</option>
+          <option value="segments">Segments</option>
         </select>
+      </div>
+      <div className="mb-4 text-center">
+        <input
+          type="checkbox"
+          id="show-arrows"
+          checked={showArrows}
+          onChange={(e) => setShowArrows(e.target.checked)}
+          className="mr-2"
+        />
+        <label htmlFor="show-arrows">Show Arrow Heads</label>
       </div>
       <div id="cy" style={{ width: '600px', height: '600px', border: '1px solid #ccc' }}></div>
     </Card>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Cytoscape from 'cytoscape';
 import coseBilkent from 'cytoscape-cose-bilkent';
 import cola from 'cytoscape-cola';
@@ -39,7 +39,7 @@ const KnightsGraph = () => {
   const [edgeStyle, setEdgeStyle] = useState<'straight' | 'haystack' | 'bezier' | 'unbundled-bezier' | 'segments' | 'taxi'>('straight');
   const [showArrows, setShowArrows] = useState(false);
 
-  const initializeCytoscape = () => {
+  const initializeCytoscape = useCallback(() => {
     if (!cyRef.current) {
       cyRef.current = Cytoscape({
         container: document.getElementById('cy'),
@@ -104,11 +104,50 @@ const KnightsGraph = () => {
       });
 
       cyRef.current.add([...nodes, ...links]);
+      
+      
+      // Simplified debug output
+      console.log('Graph Debug Data (cytoscape json):', {
+        nodes: nodes.map(node => ({ data: { id: node.data.id } })),
+        links: links.map(link => ({ data: { source: link.data.source, target: link.data.target } }))
+      });
+
+      // Debug output
+      console.log('Graph Debug Data (full debug json):', {
+        nodes: nodes,
+        links: links
+      });
+
+      // Simplified debug output
+      console.log('Graph Debug Data (simplified):', {
+        nodes: nodes.map(node => ({ data: { id: node.data.id } })),
+        links: links.map(link => ({ data: { source: link.data.source, target: link.data.target } }))
+      });
+      
+      // Plain text links debug
+      console.groupCollapsed('Graph Links (plain text)');
+      console.log(
+        links.map(link => `${link.data.source} ${link.data.target}`).join('\n')
+      );
+      console.groupEnd();
+      
+      // React Force Graph format debug output
+      console.log('Graph Debug Data (react-force-graph format:', {
+        nodes: nodes.map(node => ({
+          id: node.data.id,
+          name: node.data.id
+        })),
+        links: links.map(link => ({
+          source: link.data.source,
+          target: link.data.target
+        }))
+      });
+      
       applyLayout();
     }
-  };
+  }, [edgeStyle, showArrows]);
 
-  const applyLayout = () => {
+  const applyLayout = useCallback(() => {
     if (!cyRef.current) return;
 
     if (layout === 'chessboard') {
@@ -156,9 +195,9 @@ const KnightsGraph = () => {
       };
       cyRef.current.layout(basicOptions).run();
     }
-  };
+  }, [edgeStyle, showArrows, layout]);
 
-  const updateEdgeStyle = () => {
+  const updateEdgeStyle = useCallback(() => {
     if (!cyRef.current) return;
     
     cyRef.current.style()
@@ -169,7 +208,7 @@ const KnightsGraph = () => {
         'target-arrow-shape': showArrows ? 'triangle' : 'none',
       })
       .update();
-  };
+  }, [edgeStyle, showArrows]);
 
   useEffect(() => {
     initializeCytoscape();
@@ -178,15 +217,15 @@ const KnightsGraph = () => {
         cyRef.current.destroy();
       }
     };
-  }, []);
+  }, [initializeCytoscape]);
 
   useEffect(() => {
     applyLayout();
-  }, [layout]);
+  }, [applyLayout]);
 
   useEffect(() => {
     updateEdgeStyle();
-  }, [edgeStyle, showArrows]);
+  }, [updateEdgeStyle]);
 
   return (
     <Card className="p-4 w-full max-w-3xl mx-auto">

@@ -9,8 +9,8 @@ const nextConfig: NextConfig = {
 };
 
 /* ---added--- */
-//const isGithubActions = process.env.GITHUB_ACTIONS === 'true';
-const isGithubActions = true;
+const isGithubActions = process.env.GITHUB_ACTIONS === 'true';
+//const isGithubActions = true;
 const repo = 'knights-graph';
 
 module.exports = {

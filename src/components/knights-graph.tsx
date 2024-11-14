@@ -117,7 +117,7 @@ const KnightsGraph = () => {
       });
 
       cyRef.current.add([...nodes, ...links]);
-      
+
       
       // Simplified debug output
       console.log('Graph Data (simplified cytoscape json):', {
@@ -316,8 +316,7 @@ const KnightsGraph = () => {
           <option value="klay">Klay</option>
         </select>
       </div>
-      {/*
-      <div className="mb-4 text-center">
+      <div className="mb-4 text-center" style={{ display: 'none' }}>
         <label htmlFor="edge-style-select" className="mr-2">Edge Style:</label>
         <select
           id="edge-style-select"
@@ -332,7 +331,7 @@ const KnightsGraph = () => {
           <option value="segments">Segments</option>
         </select>
       </div>
-      <div className="mb-4 text-center hidden invisible">
+      <div className="mb-4 text-center" style={{ display: 'none' }}>
         <input
           type="checkbox"
           id="show-arrows"
@@ -342,7 +341,6 @@ const KnightsGraph = () => {
         />
         <label htmlFor="show-arrows">Show Arrow Heads</label>
       </div>
-      */}
       <div id="cy" style={{ width: '700px', height: '700px', border: '1px solid #ccc' }}></div>
     </Card>
   );

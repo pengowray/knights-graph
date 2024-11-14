@@ -25,6 +25,12 @@ if (typeof window !== 'undefined') {
   cise(Cytoscape);
 }
 
+declare module 'cytoscape' {
+  interface BaseLayoutOptions {
+    elk?: { algorithm: string };
+  }
+}
+
 interface Link {
   data: {
     source: string;
@@ -163,7 +169,7 @@ const KnightsGraph = () => {
           'target-arrow-shape': showArrows ? 'triangle' : 'none',
         });
     }
-  }, [edgeStyle, showArrows]);
+  }, [edgeStyle, showArrows, applyLayout]);
 
   const applyLayout = useCallback(() => {
     if (!cyRef.current) return;

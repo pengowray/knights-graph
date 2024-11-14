@@ -153,7 +153,6 @@ const KnightsGraph = () => {
     if (layout === 'chessboard') {
       const positions: {[key: string]: {x: number, y: number}} = {};
       
-      // Pre-calculate all positions
       cyRef.current.nodes().forEach(node => {
         const id = node.id();
         const file = id.charCodeAt(0) - 'a'.charCodeAt(0);
@@ -164,38 +163,57 @@ const KnightsGraph = () => {
         };
       });
 
-      const layoutOptions = {
-        name: 'preset' as const,
+      cyRef.current.layout({
+        name: 'preset',
         positions: positions,
         fit: true
-      };
-      
-      cyRef.current.layout(layoutOptions).run();
+      }).run();
     } 
     else if (layout === 'elk-layered' || layout === 'elk-mrtree') {
-      const elkOptions = {
+      cyRef.current.layout({
         name: 'elk',
         elk: { algorithm: layout.split('-')[1] },
-        fit: true
-      };
-      cyRef.current.layout(elkOptions).run();
+        fit: true,
+        padding: 50
+      }).run();
+    }
+    else if (layout === 'cola') {
+      cyRef.current.layout({
+        name: 'cola',
+        fit: true,
+        padding: 50,
+        nodeSpacing: 30,
+        maxSimulationTime: 1500
+      }).run();
+    }
+    else if (layout === 'dagre') {
+      cyRef.current.layout({
+        name: 'dagre',
+        fit: true,
+        padding: 50,
+        spacingFactor: 1.25
+      }).run();
+    }
+    else if (layout === 'cose-bilkent') {
+      cyRef.current.layout({
+        name: 'cose-bilkent',
+        fit: true,
+        padding: 50,
+        nodeDimensionsIncludeLabels: true
+      }).run();
     }
     else {
-      // Handle all other layouts
-      const basicOptions = {
+      // For other layouts (cose, breadthfirst, fcose, klay, random, avsdf)
+      const commonOptions = {
         name: layout,
         fit: true,
-        padding: 30,
+        padding: 50,
         randomize: layout === 'random',
-        componentSpacing: 40,
-        nodeOverlap: 20,
-        refresh: 20,
-        nodeRepulsion: () => 4500,
-        ideaForce: () => 400
+        animate: false
       };
-      cyRef.current.layout(basicOptions).run();
+      cyRef.current.layout(commonOptions).run();
     }
-  }, [edgeStyle, showArrows, layout]);
+  }, [layout]);
 
   const updateEdgeStyle = useCallback(() => {
     if (!cyRef.current) return;

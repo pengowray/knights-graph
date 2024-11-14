@@ -63,18 +63,20 @@ type LayoutName = 'chessboard' | 'cose' | 'cose-bilkent' | 'cola' | 'cise' | 'av
                  'fcose' | 'klay' | 'random';
 
 const KnightsGraph = () => {
-  const cyRef = useRef<Cytoscape.Core | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const cyRef = useRef<Cytoscape.Core>();
   const [layout, setLayout] = useState<LayoutName>('chessboard');
   const [edgeStyle, setEdgeStyle] = useState<'straight' | 'haystack' | 'bezier' | 'unbundled-bezier' | 'segments' | 'taxi'>('straight');
   const [showArrows, setShowArrows] = useState(false);
 
   const applyLayout = useCallback(() => {
-    if (!cyRef.current) return;
+    const cy = cyRef.current;
+    if (!cy) return;
 
     if (layout === 'chessboard') {
       const positions: {[key: string]: {x: number, y: number}} = {};
       
-      cyRef.current.nodes().forEach(node => {
+      cy.nodes().forEach(node => {
         const id = node.id();
         const file = id.charCodeAt(0) - 'a'.charCodeAt(0);
         const rank = parseInt(id[1], 10) - 1;
@@ -84,14 +86,14 @@ const KnightsGraph = () => {
         };
       });
 
-      cyRef.current.layout({
+      cy.layout({
         name: 'preset',
         positions: positions,
         fit: true
       }).run();
     } 
     else if (layout.startsWith('elk-')) {
-      cyRef.current.layout({
+      cy.layout({
         name: 'elk',
         elk: { algorithm: layout.split('-')[1] },
         fit: true,
@@ -99,7 +101,7 @@ const KnightsGraph = () => {
       }).run();
     }
     else if (layout === 'cola') {
-      cyRef.current.layout({
+      cy.layout({
         name: 'cola',
         fit: true,
         padding: 50,
@@ -108,7 +110,7 @@ const KnightsGraph = () => {
       }).run();
     }
     else if (layout === 'cise') {
-      cyRef.current.layout({
+      cy.layout({
         name: 'cise',
         fit: true,
         padding: 50,
@@ -124,7 +126,7 @@ const KnightsGraph = () => {
       }).run();
     }
     else if (layout === 'dagre') {
-      cyRef.current.layout({
+      cy.layout({
         name: 'dagre',
         fit: true,
         padding: 50,
@@ -132,7 +134,7 @@ const KnightsGraph = () => {
       }).run();
     }
     else if (layout === 'cose-bilkent') {
-      cyRef.current.layout({
+      cy.layout({
         name: 'cose-bilkent',
         fit: true,
         padding: 50,
@@ -148,139 +150,17 @@ const KnightsGraph = () => {
         randomize: layout === 'random',
         animate: false
       };
-      cyRef.current.layout(commonOptions).run();
+      cy.layout(commonOptions).run();
     }
   }, [layout]);
 
-  const initializeCytoscape = useCallback(() => {
-    if (!cyRef.current) {
-      cyRef.current = Cytoscape({
-        container: document.getElementById('cy'),
-        style: [
-          {
-            selector: 'node',
-            style: {
-              width: 20,
-              height: 20,
-              shape: 'rectangle',
-              label: 'data(id)',
-              'text-valign': 'center',
-              'text-halign': 'center',
-              'background-color': (ele: Cytoscape.NodeSingular) => (ele.data('isDark') ? '#B58863' : '#F0D9B5'),
-              'color': (ele: Cytoscape.NodeSingular) => (ele.data('isDark') ? 'white' : 'black'),
-              'border-color': '#262D31',
-              'border-width': 1,
-            },
-          },
-          {
-            selector: 'edge',
-            style: {
-              width: 1,
-              'line-color': '#15465C',
-              'curve-style': edgeStyle,
-              'source-arrow-shape': showArrows ? 'triangle' : 'none',
-              'target-arrow-shape': showArrows ? 'triangle' : 'none',
-              'arrow-scale': 0.6,
-              // Edge style specific options
-              'control-point-step-size': 40,
-              'taxi-direction': 'horizontal',
-              'taxi-turn': 50,
-              'segment-distances': 20,
-              'segment-weights': 0.5
-            },
-          },
-        ],
-        // Add these options to prevent renderer issues
-        wheelSensitivity: 0.2,
-        minZoom: 0.5,
-        maxZoom: 2
-      });
-
-      const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-      const ranks = ['1', '2', '3', '4', '5', '6', '7', '8'];
-      const nodes = [];
-      for (let i = 0; i < 8; i++) {
-        for (let j = 0; j < 8; j++) {
-          nodes.push({
-            data: { id: `${files[i]}${ranks[j]}`, isDark: (i + j) % 2 === 0 },
-          });
-        }
-      }
-
-      const links: Link[] = [];
-      const dirs = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
-      nodes.forEach((node) => {
-        const file = files.indexOf(node.data.id[0]);
-        const rank = ranks.indexOf(node.data.id[1]);
-
-        dirs.forEach(([df, dr]) => {
-          const newFile = file + df;
-          const newRank = rank + dr;
-
-          if (newFile >= 0 && newFile < 8 && newRank >= 0 && newRank < 8) {
-            const target = `${files[newFile]}${ranks[newRank]}`;
-            if (node.data.id < target) {
-              links.push({ data: { source: node.data.id, target: target } });
-            }
-          }
-        });
-      });
-
-      cyRef.current.add([...nodes, ...links]);
-
-      
-      // Simplified debug output
-      console.log('Graph Data (simplified cytoscape json):', {
-        nodes: nodes.map(node => ({ data: { id: node.data.id } })),
-        links: links.map(link => ({ data: { source: link.data.source, target: link.data.target } }))
-      });
-
-      // React Force Graph format debug output
-      console.log('Graph Data (react-force-graph json):', {
-        nodes: nodes.map(node => ({
-          id: node.data.id,
-          name: node.data.id
-        })),
-        links: links.map(link => ({
-          source: link.data.source,
-          target: link.data.target
-        }))
-      });
-
-      // Plain text links debug
-      console.groupCollapsed('Graph Links (text)');
-      console.log(
-        links.map(link => `${link.data.source} ${link.data.target}`).join('\n')
-      );
-      console.groupEnd();
-            
-      // Full Debug output
-      console.log('Full debug data json:', {
-        nodes: nodes,
-        links: links
-      });
-
-      applyLayout();
-    }
-
-    // Update edge styles even if cyRef already exists
-    if (cyRef.current) {
-      cyRef.current.style()
-        .selector('edge')
-        .style({
-          'curve-style': edgeStyle,
-          'source-arrow-shape': showArrows ? 'triangle' : 'none',
-          'target-arrow-shape': showArrows ? 'triangle' : 'none',
-        });
-    }
-  }, [edgeStyle, showArrows, applyLayout]);
-
   const updateEdgeStyle = useCallback(() => {
-    if (!cyRef.current) return;
+    const cy = cyRef.current;
+    if (!cy) return;
     
     requestAnimationFrame(() => {
-      if (!cyRef.current) return;
-      cyRef.current.style()
+      if (!cy) return;
+      cy.style()
         .selector('edge')
         .style({
           'curve-style': edgeStyle,
@@ -288,25 +168,105 @@ const KnightsGraph = () => {
           'target-arrow-shape': showArrows ? 'triangle' : 'none',
         });
 
-      cyRef.current.style().update();
+      cy.style().update();
     });
   }, [edgeStyle, showArrows]);
 
+  // Initialize cytoscape instance once on mount
   useEffect(() => {
-    initializeCytoscape();
-    return () => {
-      if (cyRef.current) {
-        cyRef.current.destroy();
-      }
-    };
-  }, [initializeCytoscape]);
+    if (!containerRef.current) return;
+    
+    const cy = Cytoscape({
+      container: containerRef.current,
+      style: [
+        {
+          selector: 'node',
+          style: {
+            width: 20,
+            height: 20,
+            shape: 'rectangle',
+            label: 'data(id)',
+            'text-valign': 'center',
+            'text-halign': 'center',
+            'background-color': (ele: Cytoscape.NodeSingular) => (ele.data('isDark') ? '#B58863' : '#F0D9B5'),
+            'color': (ele: Cytoscape.NodeSingular) => (ele.data('isDark') ? 'white' : 'black'),
+            'border-color': '#262D31',
+            'border-width': 1,
+          },
+        },
+        {
+          selector: 'edge',
+          style: {
+            width: 1,
+            'line-color': '#15465C',
+            'curve-style': edgeStyle,
+            'source-arrow-shape': showArrows ? 'triangle' : 'none',
+            'target-arrow-shape': showArrows ? 'triangle' : 'none',
+            'arrow-scale': 0.6,
+            'control-point-step-size': 40,
+            'taxi-direction': 'horizontal',
+            'taxi-turn': 50,
+            'segment-distances': 20,
+            'segment-weights': 0.5
+          },
+        },
+      ],
+      wheelSensitivity: 0.2,
+      minZoom: 0.5,
+      maxZoom: 2
+    });
 
+    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+    const ranks = ['1', '2', '3', '4', '5', '6', '7', '8'];
+    const nodes = [];
+    for (let i = 0; i < 8; i++) {
+      for (let j = 0; j < 8; j++) {
+        nodes.push({
+          data: { id: `${files[i]}${ranks[j]}`, isDark: (i + j) % 2 === 0 },
+        });
+      }
+    }
+
+    const links: Link[] = [];
+    const dirs = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
+    nodes.forEach((node) => {
+      const file = files.indexOf(node.data.id[0]);
+      const rank = ranks.indexOf(node.data.id[1]);
+
+      dirs.forEach(([df, dr]) => {
+        const newFile = file + df;
+        const newRank = rank + dr;
+
+        if (newFile >= 0 && newFile < 8 && newRank >= 0 && newRank < 8) {
+          const target = `${files[newFile]}${ranks[newRank]}`;
+          if (node.data.id < target) {
+            links.push({ data: { source: node.data.id, target: target } });
+          }
+        }
+      });
+    });
+
+    cy.add([...nodes, ...links]);
+    cyRef.current = cy;
+
+    return () => {
+      cy.destroy();
+      cyRef.current = undefined;
+    };
+  }, []);
+
+  // Apply layout when it changes
   useEffect(() => {
-    applyLayout();
+    if (cyRef.current) {
+      applyLayout();
+    }
   }, [applyLayout]);
 
+  // Update edge style when it changes
   useEffect(() => {
-    updateEdgeStyle();
+    if (cyRef.current) {
+      updateEdgeStyle();
+    }
   }, [updateEdgeStyle]);
 
   return (
@@ -367,7 +327,11 @@ const KnightsGraph = () => {
         />
         <label htmlFor="show-arrows">Show Arrow Heads</label>
       </div>
-      <div id="cy" style={{ width: '700px', height: '700px', border: '1px solid #ccc' }}></div>
+      <div 
+        ref={containerRef}
+        id="cy" 
+        style={{ width: '700px', height: '700px', border: '1px solid #ccc' }}
+      />
     </Card>
   );
 };

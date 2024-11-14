@@ -9,6 +9,7 @@ import dagre from 'cytoscape-dagre';
 import elk from 'cytoscape-elk';
 import fcose from 'cytoscape-fcose';
 import klay from 'cytoscape-klay';
+import cise from 'cytoscape-cise';
 
 import { Card } from '@/components/ui/card';
 
@@ -21,6 +22,7 @@ if (typeof window !== 'undefined') {
   elk(Cytoscape);
   fcose(Cytoscape);
   klay(Cytoscape);
+  cise(Cytoscape);
 }
 
 interface Link {
@@ -30,8 +32,8 @@ interface Link {
   }
 }
 
-type LayoutName = 'chessboard' | 'cose' | 'cose-bilkent' | 'cola' | 'avsdf' | 'dagre' | 
-                 'breadthfirst' | 'elk-layered' | 'elk-mrtree' | 'fcose' | 'klay' | 'random';
+type LayoutName = 'chessboard' | 'cose' | 'cose-bilkent' | 'cola' | 'cise' | 'avsdf' | 'dagre' | 
+                 'breadthfirst' | 'concentric' | 'elk-layered' | 'elk-mrtree' | 'fcose' | 'klay' | 'random';
 
 const KnightsGraph = () => {
   const cyRef = useRef<Cytoscape.Core | null>(null);
@@ -186,6 +188,22 @@ const KnightsGraph = () => {
         maxSimulationTime: 1500
       }).run();
     }
+    else if (layout === 'cise') {
+      cyRef.current.layout({
+        name: 'cise',
+        fit: true,
+        padding: 50,
+        nodeSeparation: 75,
+        idealInterClusterEdgeLengthCoefficient: 1.4,
+        clusters: [], // No specific clusters
+        allowNodesInsideCircle: false,
+        maxRatioOfNodesInsideCircle: 0.1,
+        springCoeff: 0.45,
+        nodeRepulsion: 4500,
+        gravity: 0.25,
+        gravityRange: 3.8
+      }).run();
+    }
     else if (layout === 'dagre') {
       cyRef.current.layout({
         name: 'dagre',
@@ -218,14 +236,58 @@ const KnightsGraph = () => {
   const updateEdgeStyle = useCallback(() => {
     if (!cyRef.current) return;
     
+    // First reset to a basic style
     cyRef.current.style()
       .selector('edge')
       .style({
+        'curve-style': 'straight',
+        'source-arrow-shape': 'none',
+        'target-arrow-shape': 'none',
+      })
+      .update();
+
+    // Wait a tick before applying the new style
+    setTimeout(() => {
+      if (!cyRef.current) return;
+
+      const edgeStyleOptions: Record<string, any> = {
         'curve-style': edgeStyle,
         'source-arrow-shape': showArrows ? 'triangle' : 'none',
         'target-arrow-shape': showArrows ? 'triangle' : 'none',
-      })
-      .update();
+        'arrow-scale': 0.6,
+        'line-color': '#15465C',
+        'width': 1
+      };
+
+      // Add specific options for different edge styles
+      if (edgeStyle === 'bezier' || edgeStyle === 'unbundled-bezier') {
+        edgeStyleOptions['control-point-step-size'] = 40;
+      } else if (edgeStyle === 'taxi') {
+        edgeStyleOptions['taxi-direction'] = 'horizontal';
+        edgeStyleOptions['taxi-turn'] = 50;
+      } else if (edgeStyle === 'segments') {
+        edgeStyleOptions['segment-distances'] = 20;
+        edgeStyleOptions['segment-weights'] = 0.5;
+      }
+
+      cyRef.current.style()
+        .selector('edge')
+        .style(edgeStyleOptions)
+        .update();
+
+      // Force a layout refresh with current positions
+      const currentPositions: {[key: string]: {x: number, y: number}} = {};
+      cyRef.current.nodes().forEach(node => {
+        const pos = node.position();
+        currentPositions[node.id()] = { x: pos.x, y: pos.y };
+      });
+
+      cyRef.current.layout({
+        name: 'preset',
+        positions: currentPositions,
+        fit: false
+      }).run();
+    }, 0);
   }, [edgeStyle, showArrows]);
 
   useEffect(() => {
@@ -263,9 +325,11 @@ const KnightsGraph = () => {
           <option value="cose">Cose</option>
           <option value="cose-bilkent">Cose-Bilkent</option>
           <option value="cola">Cola</option>
+          <option value="cise">CiSE</option>
           <option value="avsdf">Avsdf</option>
           <option value="dagre">Dagre</option>
           <option value="breadthfirst">Breadthfirst</option>
+          <option value="concentric">Concentric</option>
           <option value="elk-layered">ELK (Layered)</option>
           <option value="elk-mrtree">ELK (mrtree)</option>
           <option value="fcose">fCoSE</option>

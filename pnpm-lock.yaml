@@ -26,6 +26,9 @@ importers:
       cytoscape-avsdf:
         specifier: ^1.0.0
         version: 1.0.0(cytoscape@3.30.3)
+      cytoscape-cise:
+        specifier: ^2.0.0
+        version: 2.0.0(cytoscape@3.30.3)
       cytoscape-cola:
         specifier: ^2.5.1
         version: 2.5.1(cytoscape@3.30.3)
@@ -679,6 +682,11 @@ packages:
 
   cytoscape-avsdf@1.0.0:
     resolution: {integrity: sha512-Wzd2wmJgr4dK5avHy4nKHp3D8TBZ8H/+5Hq5o24bRdVTvXlhSDzQhAMtzOuhRPYwHcWB+cBhEAXboAK8n7zPTQ==}
+    peerDependencies:
+      cytoscape: ^3.2.0
+
+  cytoscape-cise@2.0.0:
+    resolution: {integrity: sha512-LDhoJk1Iuruyhd/jVqwnXGm9X5nD5DMlonSjwLKem/3o/zE3BRyUonBsydekWK7XzxBVytRNc5BIniGWxyMc3g==}
     peerDependencies:
       cytoscape: ^3.2.0
 
@@ -2548,6 +2556,12 @@ snapshots:
   cytoscape-avsdf@1.0.0(cytoscape@3.30.3):
     dependencies:
       avsdf-base: 1.0.0
+      cytoscape: 3.30.3
+
+  cytoscape-cise@2.0.0(cytoscape@3.30.3):
+    dependencies:
+      avsdf-base: 1.0.0
+      cose-base: 2.2.0
       cytoscape: 3.30.3
 
   cytoscape-cola@2.5.1(cytoscape@3.30.3):

@@ -33,7 +33,8 @@ interface Link {
 }
 
 type LayoutName = 'chessboard' | 'cose' | 'cose-bilkent' | 'cola' | 'cise' | 'avsdf' | 'dagre' | 
-                 'breadthfirst' | 'concentric' | 'elk-layered' | 'elk-mrtree' | 'fcose' | 'klay' | 'random';
+                 'breadthfirst' | 'concentric' | 'elk-box' | 'elk-disco' | 'elk-layered' | 'elk-mrtree' | 'elk-stress' |
+                 'fcose' | 'klay' | 'random';
 
 const KnightsGraph = () => {
   const cyRef = useRef<Cytoscape.Core | null>(null);
@@ -70,9 +71,19 @@ const KnightsGraph = () => {
               'source-arrow-shape': showArrows ? 'triangle' : 'none',
               'target-arrow-shape': showArrows ? 'triangle' : 'none',
               'arrow-scale': 0.6,
+              // Edge style specific options
+              'control-point-step-size': 40,
+              'taxi-direction': 'horizontal',
+              'taxi-turn': 50,
+              'segment-distances': 20,
+              'segment-weights': 0.5
             },
           },
         ],
+        // Add these options to prevent renderer issues
+        wheelSensitivity: 0.2,
+        minZoom: 0.5,
+        maxZoom: 2
       });
 
       const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
@@ -109,32 +120,13 @@ const KnightsGraph = () => {
       
       
       // Simplified debug output
-      console.log('Graph Debug Data (cytoscape json):', {
+      console.log('Graph Data (simplified cytoscape json):', {
         nodes: nodes.map(node => ({ data: { id: node.data.id } })),
         links: links.map(link => ({ data: { source: link.data.source, target: link.data.target } }))
       });
 
-      // Debug output
-      console.log('Graph Debug Data (full debug json):', {
-        nodes: nodes,
-        links: links
-      });
-
-      // Simplified debug output
-      console.log('Graph Debug Data (simplified):', {
-        nodes: nodes.map(node => ({ data: { id: node.data.id } })),
-        links: links.map(link => ({ data: { source: link.data.source, target: link.data.target } }))
-      });
-      
-      // Plain text links debug
-      console.groupCollapsed('Graph Links (plain text)');
-      console.log(
-        links.map(link => `${link.data.source} ${link.data.target}`).join('\n')
-      );
-      console.groupEnd();
-      
       // React Force Graph format debug output
-      console.log('Graph Debug Data (react-force-graph format:', {
+      console.log('Graph Data (react-force-graph json):', {
         nodes: nodes.map(node => ({
           id: node.data.id,
           name: node.data.id
@@ -144,8 +136,32 @@ const KnightsGraph = () => {
           target: link.data.target
         }))
       });
-      
+
+      // Plain text links debug
+      console.groupCollapsed('Graph Links (text)');
+      console.log(
+        links.map(link => `${link.data.source} ${link.data.target}`).join('\n')
+      );
+      console.groupEnd();
+            
+      // Full Debug output
+      console.log('Full debug data json:', {
+        nodes: nodes,
+        links: links
+      });
+
       applyLayout();
+    }
+
+    // Update edge styles even if cyRef already exists
+    if (cyRef.current) {
+      cyRef.current.style()
+        .selector('edge')
+        .style({
+          'curve-style': edgeStyle,
+          'source-arrow-shape': showArrows ? 'triangle' : 'none',
+          'target-arrow-shape': showArrows ? 'triangle' : 'none',
+        });
     }
   }, [edgeStyle, showArrows]);
 
@@ -171,7 +187,7 @@ const KnightsGraph = () => {
         fit: true
       }).run();
     } 
-    else if (layout === 'elk-layered' || layout === 'elk-mrtree') {
+    else if (layout.startsWith('elk-')) {
       cyRef.current.layout({
         name: 'elk',
         elk: { algorithm: layout.split('-')[1] },
@@ -236,58 +252,18 @@ const KnightsGraph = () => {
   const updateEdgeStyle = useCallback(() => {
     if (!cyRef.current) return;
     
-    // First reset to a basic style
-    cyRef.current.style()
-      .selector('edge')
-      .style({
-        'curve-style': 'straight',
-        'source-arrow-shape': 'none',
-        'target-arrow-shape': 'none',
-      })
-      .update();
-
-    // Wait a tick before applying the new style
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       if (!cyRef.current) return;
-
-      const edgeStyleOptions: Record<string, any> = {
-        'curve-style': edgeStyle,
-        'source-arrow-shape': showArrows ? 'triangle' : 'none',
-        'target-arrow-shape': showArrows ? 'triangle' : 'none',
-        'arrow-scale': 0.6,
-        'line-color': '#15465C',
-        'width': 1
-      };
-
-      // Add specific options for different edge styles
-      if (edgeStyle === 'bezier' || edgeStyle === 'unbundled-bezier') {
-        edgeStyleOptions['control-point-step-size'] = 40;
-      } else if (edgeStyle === 'taxi') {
-        edgeStyleOptions['taxi-direction'] = 'horizontal';
-        edgeStyleOptions['taxi-turn'] = 50;
-      } else if (edgeStyle === 'segments') {
-        edgeStyleOptions['segment-distances'] = 20;
-        edgeStyleOptions['segment-weights'] = 0.5;
-      }
-
       cyRef.current.style()
         .selector('edge')
-        .style(edgeStyleOptions)
-        .update();
+        .style({
+          'curve-style': edgeStyle,
+          'source-arrow-shape': showArrows ? 'triangle' : 'none',
+          'target-arrow-shape': showArrows ? 'triangle' : 'none',
+        });
 
-      // Force a layout refresh with current positions
-      const currentPositions: {[key: string]: {x: number, y: number}} = {};
-      cyRef.current.nodes().forEach(node => {
-        const pos = node.position();
-        currentPositions[node.id()] = { x: pos.x, y: pos.y };
-      });
-
-      cyRef.current.layout({
-        name: 'preset',
-        positions: currentPositions,
-        fit: false
-      }).run();
-    }, 0);
+      cyRef.current.style().update();
+    });
   }, [edgeStyle, showArrows]);
 
   useEffect(() => {
@@ -310,7 +286,7 @@ const KnightsGraph = () => {
   return (
     <Card className="p-4 w-full max-w-3xl mx-auto">
       <div className="text-center mb-4">
-        <h2 className="text-2xl font-bold">Knight&apos;s Move Graph</h2>
+        <h2 className="text-2xl font-bold">Knight&apos;s Move Graph (with cytoscape.js)</h2>
         <p className="text-sm text-gray-600">Visualization of possible knight moves on a chess board</p>
       </div>
       <div className="mb-4 text-center">
@@ -322,21 +298,25 @@ const KnightsGraph = () => {
           className="border rounded px-2 py-1"
         >
           <option value="chessboard">Chessboard</option>
+          <option value="random">Random</option>
+          <option value="fcose">fCoSE</option>
+          <option value="avsdf">Avsdf</option>
+          <option value="breadthfirst">Breadthfirst</option>
+          <option value="cise">CiSE</option>
+          <option value="cola">Cola</option>
+          <option value="concentric">Concentric</option>
           <option value="cose">Cose</option>
           <option value="cose-bilkent">Cose-Bilkent</option>
-          <option value="cola">Cola</option>
-          <option value="cise">CiSE</option>
-          <option value="avsdf">Avsdf</option>
           <option value="dagre">Dagre</option>
-          <option value="breadthfirst">Breadthfirst</option>
-          <option value="concentric">Concentric</option>
-          <option value="elk-layered">ELK (Layered)</option>
+          <option value="elk-box">ELK (box)</option>
+          {/*<option value="elk-disco">ELK (Disco)</option>*/}
+          <option value="elk-layered">ELK (layered)</option>
           <option value="elk-mrtree">ELK (mrtree)</option>
-          <option value="fcose">fCoSE</option>
+          <option value="elk-stress">ELK (stress)</option>
           <option value="klay">Klay</option>
-          <option value="random">Random</option>
         </select>
       </div>
+      {/*
       <div className="mb-4 text-center">
         <label htmlFor="edge-style-select" className="mr-2">Edge Style:</label>
         <select
@@ -352,7 +332,7 @@ const KnightsGraph = () => {
           <option value="segments">Segments</option>
         </select>
       </div>
-      <div className="mb-4 text-center">
+      <div className="mb-4 text-center hidden invisible">
         <input
           type="checkbox"
           id="show-arrows"
@@ -362,7 +342,8 @@ const KnightsGraph = () => {
         />
         <label htmlFor="show-arrows">Show Arrow Heads</label>
       </div>
-      <div id="cy" style={{ width: '600px', height: '600px', border: '1px solid #ccc' }}></div>
+      */}
+      <div id="cy" style={{ width: '700px', height: '700px', border: '1px solid #ccc' }}></div>
     </Card>
   );
 };

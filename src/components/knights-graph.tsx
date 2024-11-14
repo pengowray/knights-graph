@@ -28,6 +28,26 @@ if (typeof window !== 'undefined') {
 declare module 'cytoscape' {
   interface BaseLayoutOptions {
     elk?: { algorithm: string };
+    name: string;
+    fit?: boolean;
+    padding?: number;
+    positions?: { [key: string]: { x: number, y: number } };
+    animate?: boolean;
+    randomize?: boolean;
+    nodeSpacing?: number;
+    maxSimulationTime?: number;
+    nodeSeparation?: number;
+    spacingFactor?: number;
+    nodeDimensionsIncludeLabels?: boolean;
+    // CiSE layout options
+    clusters?: any[];
+    allowNodesInsideCircle?: boolean;
+    maxRatioOfNodesInsideCircle?: number;
+    springCoeff?: number;
+    nodeRepulsion?: number;
+    gravity?: number;
+    gravityRange?: number;
+    idealInterClusterEdgeLengthCoefficient?: number;
   }
 }
 
@@ -47,6 +67,90 @@ const KnightsGraph = () => {
   const [layout, setLayout] = useState<LayoutName>('chessboard');
   const [edgeStyle, setEdgeStyle] = useState<'straight' | 'haystack' | 'bezier' | 'unbundled-bezier' | 'segments' | 'taxi'>('straight');
   const [showArrows, setShowArrows] = useState(false);
+
+  const applyLayout = useCallback(() => {
+    if (!cyRef.current) return;
+
+    if (layout === 'chessboard') {
+      const positions: {[key: string]: {x: number, y: number}} = {};
+      
+      cyRef.current.nodes().forEach(node => {
+        const id = node.id();
+        const file = id.charCodeAt(0) - 'a'.charCodeAt(0);
+        const rank = parseInt(id[1], 10) - 1;
+        positions[id] = {
+          x: file * 80,
+          y: (7 - rank) * 80
+        };
+      });
+
+      cyRef.current.layout({
+        name: 'preset',
+        positions: positions,
+        fit: true
+      }).run();
+    } 
+    else if (layout.startsWith('elk-')) {
+      cyRef.current.layout({
+        name: 'elk',
+        elk: { algorithm: layout.split('-')[1] },
+        fit: true,
+        padding: 50
+      }).run();
+    }
+    else if (layout === 'cola') {
+      cyRef.current.layout({
+        name: 'cola',
+        fit: true,
+        padding: 50,
+        nodeSpacing: 30,
+        maxSimulationTime: 1500
+      }).run();
+    }
+    else if (layout === 'cise') {
+      cyRef.current.layout({
+        name: 'cise',
+        fit: true,
+        padding: 50,
+        nodeSeparation: 75,
+        idealInterClusterEdgeLengthCoefficient: 1.4,
+        clusters: [], // No specific clusters
+        allowNodesInsideCircle: false,
+        maxRatioOfNodesInsideCircle: 0.1,
+        springCoeff: 0.45,
+        nodeRepulsion: 4500,
+        gravity: 0.25,
+        gravityRange: 3.8
+      }).run();
+    }
+    else if (layout === 'dagre') {
+      cyRef.current.layout({
+        name: 'dagre',
+        fit: true,
+        padding: 50,
+        spacingFactor: 1.25
+      }).run();
+    }
+    else if (layout === 'cose-bilkent') {
+      cyRef.current.layout({
+        name: 'cose-bilkent',
+        fit: true,
+        padding: 50,
+        nodeDimensionsIncludeLabels: true
+      }).run();
+    }
+    else {
+      // For other layouts (cose, breadthfirst, fcose, klay, random, avsdf)
+      const commonOptions = {
+        name: layout,
+        fit: true,
+        padding: 50,
+        randomize: layout === 'random',
+        animate: false
+      };
+      cyRef.current.layout(commonOptions).run();
+    }
+  }, [layout]);
 
   const initializeCytoscape = useCallback(() => {
     if (!cyRef.current) {
@@ -169,91 +273,7 @@ const KnightsGraph = () => {
           'target-arrow-shape': showArrows ? 'triangle' : 'none',
         });
     }
-  }, [edgeStyle, showArrows, applyLayout]);
-
-  const applyLayout = useCallback(() => {
-    if (!cyRef.current) return;
-
-    if (layout === 'chessboard') {
-      const positions: {[key: string]: {x: number, y: number}} = {};
-      
-      cyRef.current.nodes().forEach(node => {
-        const id = node.id();
-        const file = id.charCodeAt(0) - 'a'.charCodeAt(0);
-        const rank = parseInt(id[1], 10) - 1;
-        positions[id] = {
-          x: file * 80,
-          y: (7 - rank) * 80
-        };
-      });
-
-      cyRef.current.layout({
-        name: 'preset',
-        positions: positions,
-        fit: true
-      }).run();
-    } 
-    else if (layout.startsWith('elk-')) {
-      cyRef.current.layout({
-        name: 'elk',
-        elk: { algorithm: layout.split('-')[1] },
-        fit: true,
-        padding: 50
-      }).run();
-    }
-    else if (layout === 'cola') {
-      cyRef.current.layout({
-        name: 'cola',
-        fit: true,
-        padding: 50,
-        nodeSpacing: 30,
-        maxSimulationTime: 1500
-      }).run();
-    }
-    else if (layout === 'cise') {
-      cyRef.current.layout({
-        name: 'cise',
-        fit: true,
-        padding: 50,
-        nodeSeparation: 75,
-        idealInterClusterEdgeLengthCoefficient: 1.4,
-        clusters: [], // No specific clusters
-        allowNodesInsideCircle: false,
-        maxRatioOfNodesInsideCircle: 0.1,
-        springCoeff: 0.45,
-        nodeRepulsion: 4500,
-        gravity: 0.25,
-        gravityRange: 3.8
-      }).run();
-    }
-    else if (layout === 'dagre') {
-      cyRef.current.layout({
-        name: 'dagre',
-        fit: true,
-        padding: 50,
-        spacingFactor: 1.25
-      }).run();
-    }
-    else if (layout === 'cose-bilkent') {
-      cyRef.current.layout({
-        name: 'cose-bilkent',
-        fit: true,
-        padding: 50,
-        nodeDimensionsIncludeLabels: true
-      }).run();
-    }
-    else {
-      // For other layouts (cose, breadthfirst, fcose, klay, random, avsdf)
-      const commonOptions = {
-        name: layout,
-        fit: true,
-        padding: 50,
-        randomize: layout === 'random',
-        animate: false
-      };
-      cyRef.current.layout(commonOptions).run();
-    }
-  }, [layout]);
+  }, [edgeStyle, showArrows]);
 
   const updateEdgeStyle = useCallback(() => {
     if (!cyRef.current) return;

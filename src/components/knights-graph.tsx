@@ -302,7 +302,7 @@ const KnightsGraph = () => {
           <option value="klay">Klay</option>
         </select>
       </div>
-      <div className="mb-4 text-center" style={{ display: 'none' }}>
+      <div className="mb-4 text-center">
         <label htmlFor="edge-style-select" className="mr-2">Edge Style:</label>
         <select
           id="edge-style-select"
@@ -317,7 +317,7 @@ const KnightsGraph = () => {
           <option value="segments">Segments</option>
         </select>
       </div>
-      <div className="mb-4 text-center" style={{ display: 'none' }}>
+      <div className="mb-4 text-center">
         <input
           type="checkbox"
           id="show-arrows"

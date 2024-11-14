@@ -40,7 +40,7 @@ declare module 'cytoscape' {
     spacingFactor?: number;
     nodeDimensionsIncludeLabels?: boolean;
     // CiSE layout options
-    clusters?: any[];
+    clusters?: { id: string; nodes: string[] }[];
     allowNodesInsideCircle?: boolean;
     maxRatioOfNodesInsideCircle?: number;
     springCoeff?: number;
@@ -273,7 +273,7 @@ const KnightsGraph = () => {
           'target-arrow-shape': showArrows ? 'triangle' : 'none',
         });
     }
-  }, [edgeStyle, showArrows]);
+  }, [edgeStyle, showArrows, applyLayout]);
 
   const updateEdgeStyle = useCallback(() => {
     if (!cyRef.current) return;

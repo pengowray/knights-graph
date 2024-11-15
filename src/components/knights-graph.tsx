@@ -677,7 +677,7 @@ const KnightsGraph = () => {
     }
   }, [edgeStyle, showArrows, updateEdgeStyle]);
 
-  const useCube = false;
+  const useCube = true;
   const Force3DGraph = layout === '3d-force' ? (
     <div style={{ width: '100%', height: '100%', border: '1px solid #ccc' }} className="force-graph-3d">
       <ForceGraph3D
@@ -690,10 +690,12 @@ const KnightsGraph = () => {
         linkColor={() => '#15465C'}
         linkWidth={1.1}
         nodeThreeObject={node => {
+          const geometry = useCube ? 
+            new BoxGeometry(nodeSize / 10, nodeSize / 10, nodeSize / 10) :
+            new SphereGeometry(nodeSize / 10);
+            
           const sphere = new Mesh(
-            (useCube) ? 
-              new BoxGeometry(nodeSize / 10, nodeSize / 10, nodeSize / 10) :
-              new SphereGeometry(nodeSize / 10),
+            geometry,
             new MeshLambertMaterial({
               color: node.isDark ? '#B58863' : '#F0D9B5',
               //transparent: true,
@@ -705,10 +707,23 @@ const KnightsGraph = () => {
           const label = new SpriteText(node.id as string);
           label.color = '#000000';
           //label.color = node.isDark ? '#FFFFFF' : '#000000';
-          label.textHeight = nodeSize / 7; // Adjust text height proportionally
+          label.textHeight = nodeSize / 10;
           label.renderOrder = 2;
           label.material.depthTest = false;
           label.material.depthWrite = false;
+
+          // Add opacity update function
+          const updateOpacity = () => {
+            if (!fgRef.current) return;
+            const camera = fgRef.current.camera();
+            const distance = camera.position.distanceTo(sphere.position);
+            const maxDistance = 600; // Adjust this value based on your graph scale
+            const opacity = Math.max(0.5, 1 - (distance / maxDistance));
+            label.material.opacity = opacity;
+          };
+
+          // Add the update function to the sprite
+          label.onBeforeRender = updateOpacity;
           
           sphere.add(label);
           return sphere;

@@ -180,8 +180,11 @@ const KnightsGraph = () => {
         });
 
       cy.style().update();
+      
+      // Reapply layout after edge style change
+      setTimeout(() => applyLayout(), 50);
     });
-  }, [edgeStyle, showArrows]);
+  }, [edgeStyle, showArrows, applyLayout]);
 
   const registerExtensions = useCallback(async () => {
     if (typeof window === 'undefined') return;
@@ -292,6 +295,9 @@ const KnightsGraph = () => {
 
       cy.add([...nodes, ...links]);
       cyRef.current = cy;
+
+      // Apply initial layout after a small delay
+      setTimeout(() => applyLayout(), 50);
     };
 
     initCytoscape();
@@ -302,7 +308,7 @@ const KnightsGraph = () => {
         cyRef.current = undefined;
       }
     };
-  }, [edgeStyle, showArrows, registerExtensions]);
+  }, [edgeStyle, showArrows, registerExtensions, applyLayout]);
 
   // Add this after the existing useEffect that initializes Cytoscape
   useEffect(() => {

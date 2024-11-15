@@ -71,6 +71,9 @@ importers:
       tailwindcss-animate:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.14)
+      three:
+        specifier: ^0.170.0
+        version: 0.170.0
       three-spritetext:
         specifier: ^1.9.0
         version: 1.9.0(three@0.170.0)

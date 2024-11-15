@@ -54,11 +54,15 @@ declare module 'cytoscape' {
   }
 }
 
+interface Node {
+  id: string;
+  isDark: boolean;
+  color: string;
+}
+
 interface Link {
-  data: {
-    source: string;
-    target: string;
-  }
+  source: string;
+  target: string;
 }
 
 type LayoutName = '3d-force' | 'chessboard' | 'cose' | 'cose-bilkent' | 'cola' | 'cise' | 'avsdf' | 'dagre' | 
@@ -71,8 +75,7 @@ const KnightsGraph = () => {
   const [layout, setLayout] = useState<LayoutName>('chessboard');
   const [edgeStyle, setEdgeStyle] = useState<'straight' | 'haystack' | 'bezier' | 'unbundled-bezier' | 'segments' | 'taxi'>('straight');
   const [showArrows, setShowArrows] = useState(false);
-  const [graphData, setGraphData] = useState<{ nodes: any[], links: any[] }>({ nodes: [], links: [] });
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [graphData, setGraphData] = useState<{ nodes: Node[], links: Link[] }>({ nodes: [], links: [] });
 
   const applyLayout = useCallback(() => {
     const cy = cyRef.current;
@@ -311,7 +314,7 @@ const KnightsGraph = () => {
   }, [updateEdgeStyle]);
 
   return (
-    <Card className={`p-4 ${isFullscreen ? 'fixed inset-0 z-50' : 'w-full max-w-3xl mx-auto'}`}>
+    <Card className="p-4 w-full">
       <div className="text-center mb-4">
         <h2 className="text-2xl font-bold">Knight&apos;s Move Graph (with cytoscape.js)</h2>
         <p className="text-sm text-gray-600">Visualization of possible knight moves on a chess board</p>
@@ -369,18 +372,11 @@ const KnightsGraph = () => {
         />
         <label htmlFor="show-arrows">Show Arrow Heads</label>
       </div>
-      <div className="mb-4 text-center">
-        <button
-          onClick={() => setIsFullscreen(!isFullscreen)}
-          className="border rounded px-4 py-1 bg-gray-100 hover:bg-gray-200"
-        >
-          {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-        </button>
-      </div>
 
       <div style={{ 
-        width: isFullscreen ? '100%' : '700px',
-        height: isFullscreen ? 'calc(100vh - 200px)' : '700px'
+        width: '100vw',
+        height: '80vh',
+        margin: '0 -1rem' // Compensate for Card padding
       }}>
         <div 
           ref={containerRef}

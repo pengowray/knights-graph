@@ -171,6 +171,32 @@ const KnightsGraph = () => {
     return clusters;
   }, []);
 
+  const updateEdgeStyle = useCallback(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
+    
+    cy.edges().forEach(edge => {
+      edge.style({
+        'curve-style': edgeStyle,
+        'source-arrow-shape': showArrows ? 'triangle' : 'none',
+        'target-arrow-shape': showArrows ? 'triangle' : 'none',
+      });
+    });
+  }, [edgeStyle, showArrows]);
+
+  const updateNodeSize = useCallback(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
+    
+    cy.nodes().forEach(node => {
+      node.style({
+        width: nodeSize,
+        height: nodeSize,
+        'font-size': `${nodeSize / 1.4}px`,
+      });
+    });
+  }, [nodeSize]);
+
   const applyLayout = useCallback(() => {
     const cy = cyRef.current;
     if (!cy || layout === '3d-force') return;
@@ -221,13 +247,11 @@ const KnightsGraph = () => {
       cy.layout({
         ...defaultSettings,
         name: 'elk',
-        //padding: 20,
         aspectRatio: 2,
         elk: { 
           algorithm: 'box',
           'elk.aspectRatio': 2
         },
-        
       }).run();
     }
     else if (layout.startsWith('elk-')) {
@@ -275,7 +299,7 @@ const KnightsGraph = () => {
         name: 'cise',
         clusters,
         randomize: true,
-        refresh: 10,
+        refresh: 5,
         nodeSeparation: 2,
         spacingFactor: 1,
         idealInterClusterEdgeLengthCoefficient: 1.4,
@@ -332,44 +356,6 @@ const KnightsGraph = () => {
     }
   }, [layout, getRandomizedPositions, createChessClusters, createQuarterClusters, createColorClusters, createEdgePairClusters]);
 
-  const updateEdgeStyle = useCallback(() => {
-    const cy = cyRef.current;
-    if (!cy) return;
-    
-    requestAnimationFrame(() => {
-      if (!cy) return;
-      cy.style()
-        .selector('edge')
-        .style({
-          'curve-style': edgeStyle,
-          'source-arrow-shape': showArrows ? 'triangle' : 'none',
-          'target-arrow-shape': showArrows ? 'triangle' : 'none',
-        });
-
-      cy.style().update();
-      
-      // Reapply layout after edge style change
-      setTimeout(() => applyLayout(), 50);
-    });
-  }, [edgeStyle, showArrows, applyLayout]);
-
-  const updateNodeSize = useCallback(() => {
-    const cy = cyRef.current;
-    if (!cy) return;
-  
-    requestAnimationFrame(() => {
-      if (!cy) return;
-      cy.style()
-        .selector('node')
-        .style({
-          width: nodeSize,
-          height: nodeSize,
-          'font-size': `${nodeSize / 1.4}px`, // Adjust font size proportionally
-        })
-        .update();
-    });
-  }, [nodeSize]);
-
   const registerExtensions = useCallback(async () => {
     if (typeof window === 'undefined') return;
     
@@ -394,6 +380,38 @@ const KnightsGraph = () => {
     }
   }, []);
 
+  const initializeStyles = useCallback((cy: Cytoscape.Core) => {
+    cy.style([
+      {
+        selector: 'node',
+        style: {
+          shape: 'rectangle',
+          label: 'data(id)',
+          'text-valign': 'center',
+          'text-halign': 'center',
+          'text-margin-y': 0,
+          'background-color': (ele: Cytoscape.NodeSingular) => (ele.data('isDark') ? '#B58863' : '#F0D9B5'),
+          'color': (ele: Cytoscape.NodeSingular) => (ele.data('isDark') ? 'white' : 'black'),
+          'border-color': '#262D31',
+          'border-width': 1,
+        },
+      },
+      {
+        selector: 'edge',
+        style: {
+          width: 1.3,
+          'line-color': '#15465C',
+          'arrow-scale': 0.6,
+          'control-point-step-size': 40,
+          'taxi-direction': 'horizontal',
+          'taxi-turn': 50,
+          'segment-distances': 20,
+          'segment-weights': 0.5
+        },
+      },
+    ]);
+  }, []);
+
   // Initialize cytoscape instance once on mount
   useEffect(() => {
     let cy: Cytoscape.Core | undefined;
@@ -405,45 +423,15 @@ const KnightsGraph = () => {
       
       cy = Cytoscape({
         container: containerRef.current,
-        style: [
-          {
-            selector: 'node',
-            style: {
-              width: 34,
-              height: 34,
-              shape: 'rectangle',
-              label: 'data(id)',
-              'text-valign': 'center',
-              'text-halign': 'center',
-              'font-size': '24px',
-              'text-margin-y': 0,
-              'background-color': (ele: Cytoscape.NodeSingular) => (ele.data('isDark') ? '#B58863' : '#F0D9B5'),
-              'color': (ele: Cytoscape.NodeSingular) => (ele.data('isDark') ? 'white' : 'black'),
-              'border-color': '#262D31',
-              'border-width': 1,
-            },
-          },
-          {
-            selector: 'edge',
-            style: {
-              width: 1.3,  // Increase from 1
-              'line-color': '#15465C',
-              'curve-style': edgeStyle,
-              'source-arrow-shape': showArrows ? 'triangle' : 'none',
-              'target-arrow-shape': showArrows ? 'triangle' : 'none',
-              'arrow-scale': 0.6,
-              'control-point-step-size': 40,
-              'taxi-direction': 'horizontal',
-              'taxi-turn': 50,
-              'segment-distances': 20,
-              'segment-weights': 0.5
-            },
-          },
-        ],
+        style: [],  // Empty initial style
         wheelSensitivity: 0.2,
-        minZoom: 0.1,  // Changed from 0.5
+        minZoom: 0.1,
         maxZoom: 2
       });
+
+      initializeStyles(cy);  // Apply base styles
+      updateNodeSize();      // Apply initial node size
+      updateEdgeStyle();     // Apply initial edge style
 
       const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
       const ranks = ['1', '2', '3', '4', '5', '6', '7', '8'];
@@ -494,7 +482,7 @@ const KnightsGraph = () => {
         cyRef.current = undefined;
       }
     };
-  }, [edgeStyle, showArrows, registerExtensions, applyLayout]);
+  }, [registerExtensions, initializeStyles]);
 
   // Add this after the existing useEffect that initializes Cytoscape
   useEffect(() => {
@@ -540,18 +528,17 @@ const KnightsGraph = () => {
     }
   }, [applyLayout]);
 
-  // Update edge style when it changes
-  useEffect(() => {
-    if (cyRef.current) {
-      updateEdgeStyle();
-    }
-  }, [updateEdgeStyle]);
-
   useEffect(() => {
     if (cyRef.current) {
       updateNodeSize();
     }
   }, [nodeSize, updateNodeSize]);
+
+  useEffect(() => {
+    if (cyRef.current) {
+      updateEdgeStyle();
+    }
+  }, [edgeStyle, showArrows, updateEdgeStyle]);
 
   const Force3DGraph = layout === '3d-force' ? (
     <div style={{ width: '100%', height: '100%', border: '1px solid #ccc' }}>

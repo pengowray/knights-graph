@@ -28,7 +28,11 @@ const ForceGraph3D = dynamic(() => import('react-force-graph-3d'), {
 
 declare module 'cytoscape' {
   interface BaseLayoutOptions {
-    elk?: { algorithm: string };
+    elk?: { 
+      algorithm: string;
+      'elk.spacing.nodeNode'?: number;
+      'elk.layered.spacing.nodeNodeBetweenLayers'?: number;
+    };
     name: string;
     fit?: boolean;
     padding?: number;
@@ -52,6 +56,13 @@ declare module 'cytoscape' {
     // Dagre layout options
     rankDir?: 'TB' | 'BT' | 'LR' | 'RL';
     ranker?: 'network-simplex' | 'tight-tree' | 'longest-path';
+    rankSep?: number;
+    // Klay layout options
+    nodeLayering?: string;
+    nodePlacement?: string;
+    // ELK layout options
+    'elk.spacing.nodeNode'?: number;
+    'elk.layered.spacing.nodeNodeBetweenLayers'?: number;
   }
 }
 
@@ -86,12 +97,12 @@ const KnightsGraph = () => {
     const cy = cyRef.current;
     if (!cy || layout === '3d-force') return;
 
-    // Add default layout settings
+    // Update default settings
     const defaultSettings = {
       fit: true,
-      padding: 50,
-      spacingFactor: 1.5,
-      animate: false,
+      padding: 20,
+      spacingFactor: 1,
+      animate: true,
       nodeDimensionsIncludeLabels: true,
     };
 
@@ -118,14 +129,18 @@ const KnightsGraph = () => {
       cy.layout({
         ...defaultSettings,
         name: 'elk',
-        elk: { algorithm: layout.split('-')[1] },
+        padding: 20,
+        elk: { 
+          algorithm: layout.split('-')[1],
+          'elk.spacing.nodeNode': 80,  // Increase node spacing
+          'elk.layered.spacing.nodeNodeBetweenLayers': 100,  // Increase layer spacing
+        },
       }).run();
     }
     else if (layout === 'cola') {
       cy.layout({
         ...defaultSettings,
         name: 'cola',
-        nodeSpacing: 50,
         maxSimulationTime: 1500,
       }).run();
     }
@@ -133,7 +148,7 @@ const KnightsGraph = () => {
       cy.layout({
         ...defaultSettings,
         name: 'cise',
-        nodeSeparation: 100,
+        nodeSeparation: 40,
         idealInterClusterEdgeLengthCoefficient: 1.4,
         clusters: [],
         allowNodesInsideCircle: false,
@@ -148,8 +163,10 @@ const KnightsGraph = () => {
       cy.layout({
         ...defaultSettings,
         name: 'dagre',
-        rankDir: 'LR',
+        rankDir: 'TB',
         ranker: 'tight-tree',
+        rankSep: 50,  // Increase rank separation
+        nodeSpacing: 20,   // Increase node separation
       }).run();
     }
     else if (layout === 'cose-bilkent') {
@@ -159,7 +176,22 @@ const KnightsGraph = () => {
         nodeRepulsion: 4500,
       }).run();
     }
-    else if (['cose', 'breadthfirst', 'fcose', 'klay', 'random', 'avsdf', 'concentric'].includes(layout)) {
+    else if (layout === 'avsdf') {
+      cy.layout({
+        ...defaultSettings,
+        name: 'avsdf',
+        nodeSeparation: 60,
+      }).run();
+    }
+    else if (layout === 'klay') {
+      cy.layout({
+        ...defaultSettings,
+        name: 'klay',
+        nodeLayering: 'NETWORK_SIMPLEX',
+        nodePlacement: 'LINEAR_SEGMENTS',
+      }).run();
+    }
+    else if (['cose', 'breadthfirst', 'fcose', 'random', 'concentric'].includes(layout)) {
       cy.layout({
         ...defaultSettings,
         name: layout,
@@ -228,12 +260,14 @@ const KnightsGraph = () => {
           {
             selector: 'node',
             style: {
-              width: 20,
-              height: 20,
+              width: 34,
+              height: 34,
               shape: 'rectangle',
               label: 'data(id)',
               'text-valign': 'center',
               'text-halign': 'center',
+              'font-size': '24px',
+              'text-margin-y': 0,
               'background-color': (ele: Cytoscape.NodeSingular) => (ele.data('isDark') ? '#B58863' : '#F0D9B5'),
               'color': (ele: Cytoscape.NodeSingular) => (ele.data('isDark') ? 'white' : 'black'),
               'border-color': '#262D31',
@@ -243,7 +277,7 @@ const KnightsGraph = () => {
           {
             selector: 'edge',
             style: {
-              width: 1,
+              width: 1.3,  // Increase from 1
               'line-color': '#15465C',
               'curve-style': edgeStyle,
               'source-arrow-shape': showArrows ? 'triangle' : 'none',
@@ -258,7 +292,7 @@ const KnightsGraph = () => {
           },
         ],
         wheelSensitivity: 0.2,
-        minZoom: 0.5,
+        minZoom: 0.1,  // Changed from 0.5
         maxZoom: 2
       });
 

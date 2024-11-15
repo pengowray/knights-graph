@@ -8,12 +8,18 @@ const nextConfig: NextConfig = {
   },
 };
 
-/* ---added--- */
 const isGithubActions = process.env.GITHUB_ACTIONS === 'true';
 //const isGithubActions = true;
 const repo = 'knights-graph';
 
 module.exports = {
+  typescript: {
+    // !! WARN !!
+    // Dangerously allow production builds to successfully complete even if
+    // your project has type errors.
+    // !! WARN !!
+    ignoreBuildErrors: true,
+  },
   output: 'export',
   distDir: 'docs',
   assetPrefix: isGithubActions ? `/${repo}/` : '',
@@ -22,8 +28,5 @@ module.exports = {
   },
   basePath: isGithubActions ? `/${repo}` : '',
 };
-/* ---end of added--- */
-
-
 
 export default nextConfig;

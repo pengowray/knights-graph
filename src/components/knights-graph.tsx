@@ -95,7 +95,7 @@ const KnightsGraph = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Cytoscape.Core>();
   const [layout, setLayout] = useState<LayoutName>('chessboard');
-  const [edgeStyle, setEdgeStyle] = useState<'straight' | 'haystack' | 'bezier' | 'unbundled-bezier' | 'segments' | 'taxi'>('straight');
+  const [edgeStyle, setEdgeStyle] = useState<'straight' | 'haystack' | 'bezier' | 'unbundled-bezier' | 'segments' | 'taxi' | 'taxi-vertical'>('straight');
   const [showArrows, setShowArrows] = useState(false);
   const [graphData, setGraphData] = useState<{ nodes: Node[], links: Link[] }>({ nodes: [], links: [] });
   const [nodeSize, setNodeSize] = useState(34); // Default node size
@@ -176,10 +176,44 @@ const KnightsGraph = () => {
     if (!cy) return;
     
     cy.edges().forEach(edge => {
-      edge.style({
+      const baseStyle = {
         'curve-style': edgeStyle,
         'source-arrow-shape': showArrows ? 'triangle' : 'none',
         'target-arrow-shape': showArrows ? 'triangle' : 'none',
+      };
+
+      // Add specific configurations for each edge style
+      const styleConfig = {
+        'bezier': {
+          'control-point-step-size': 40,
+          'control-point-weight': 0.5,
+          'curve-style': 'bezier'
+        },
+        'unbundled-bezier': {
+          'control-point-distances': [20],
+          'control-point-weights': [0.5]
+        },
+        'taxi': {
+          'taxi-direction': 'horizontal',
+          'taxi-turn': 50
+        },
+        'taxi-vertical': {
+          'curve-style': 'taxi',
+          'taxi-direction': 'vertical',
+          'taxi-turn': 50
+        },
+        'haystack': {
+          'haystack-radius': 0.5
+        },
+        'segments': {
+          'segment-distances': 20,
+          'segment-weights': 0.5
+        }
+      };
+
+      edge.style({
+        ...baseStyle,
+        ...(styleConfig[edgeStyle as keyof typeof styleConfig] || {})
       });
     });
   }, [edgeStyle, showArrows]);
@@ -299,7 +333,7 @@ const KnightsGraph = () => {
         name: 'cise',
         clusters,
         randomize: true,
-        refresh: 5,
+        refresh: 50,
         nodeSeparation: 2,
         spacingFactor: 1,
         idealInterClusterEdgeLengthCoefficient: 1.4,
@@ -615,14 +649,16 @@ const KnightsGraph = () => {
         <select
           id="edge-style-select"
           value={edgeStyle}
-          onChange={(e) => setEdgeStyle(e.target.value as 'straight' | 'haystack' | 'bezier' | 'unbundled-bezier' | 'segments' | 'taxi')}
+          onChange={(e) => setEdgeStyle(e.target.value as typeof edgeStyle)}
           className="border rounded px-2 py-1"
         >
           <option value="straight">Straight</option>
-          <option value="taxi">Taxi</option>
-          <option value="bezier">Bezier</option>
+          {/*<option value="bezier">Bezier</option>*/}
           <option value="unbundled-bezier">Unbundled Bezier</option>
+          <option value="taxi">Taxi (Horizontal)</option>
+          <option value="taxi-vertical">Taxi (Vertical)</option>
           <option value="segments">Segments</option>
+          <option value="haystack">Haystack</option>
         </select>
       </div>
       <div className="mb-4 text-center">

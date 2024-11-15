@@ -705,8 +705,8 @@ const KnightsGraph = () => {
           );
           
           const label = new SpriteText(node.id as string);
-          label.color = '#000000';
-          //label.color = node.isDark ? '#FFFFFF' : '#000000';
+          //label.color = '#000000';
+          label.color = node.isDark ? '#FFFFFF' : '#000000';
           label.textHeight = nodeSize / 10;
           label.renderOrder = 2;
           label.material.depthTest = false;

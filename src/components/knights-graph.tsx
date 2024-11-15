@@ -94,11 +94,15 @@ type LayoutName = '3d-force' | 'chessboard' | 'cose' | 'cose-bilkent' | 'cola' |
 const KnightsGraph = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Cytoscape.Core>();
+  const fgRef = useRef<any>();
   const [layout, setLayout] = useState<LayoutName>('chessboard');
   const [edgeStyle, setEdgeStyle] = useState<'straight' | 'haystack' | 'bezier' | 'unbundled-bezier' | 'segments' | 'taxi' | 'taxi-vertical'>('straight');
   const [showArrows, setShowArrows] = useState(false);
   const [graphData, setGraphData] = useState<{ nodes: Node[], links: Link[] }>({ nodes: [], links: [] });
   const [nodeSize, setNodeSize] = useState(34); // Default node size
+  const [wiggleMode, setWiggleMode] = useState(false); // Add wiggleMode state
+  const [cameraDistance, setCameraDistance] = useState<number | null>(null);
+  const [savedCameraPosition, setSavedCameraPosition] = useState<{ x: number, y: number, z: number } | null>(null);
 
   const getRandomizedPositions = useCallback((cy: Cytoscape.Core) => {
     const positions: {[key: string]: {x: number, y: number}} = {};
@@ -583,6 +587,55 @@ const KnightsGraph = () => {
     setGraphData({ nodes, links: shuffleArray(links) });
   }, []); // Remove shuffleArray from dependencies
 
+  // Add useEffect for wiggleMode
+  useEffect(() => {
+    if (layout !== '3d-force' || !wiggleMode || !fgRef || !fgRef.current) return;
+
+    // Store initial camera position when entering wiggle mode
+    if (!savedCameraPosition) {
+      const camera = fgRef.current.camera();
+      const pos = camera.position;
+      setSavedCameraPosition({ x: pos.x, y: pos.y, z: pos.z });
+      setCameraDistance(pos.length());
+    }
+
+    const interval = setInterval(() => {
+      if (!fgRef || !fgRef.current) return;
+      const angle = Date.now() * 2 * Math.PI / 10000; // Full rotation in 10 seconds
+      const distance = cameraDistance || fgRef.current.camera().position.length();
+      fgRef.current.cameraPosition({
+        x: distance * Math.cos(angle),
+        y: distance * Math.sin(angle),
+        z: distance
+      });
+    }, 33);
+
+    return () => {
+      clearInterval(interval);
+      if (fgRef && fgRef.current && savedCameraPosition) {
+        fgRef.current.cameraPosition(
+          savedCameraPosition,
+          { x: 0, y: 0, z: 0 },
+          500
+        );
+        setSavedCameraPosition(null);
+        setCameraDistance(null);
+      }
+    };
+  }, [layout, wiggleMode, cameraDistance, savedCameraPosition]);
+
+  // Add event listener for 'x' key press
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.key === 'x' && layout === '3d-force') {
+        setWiggleMode(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [layout]);
+
   // Apply layout when it changes
   useEffect(() => {
     if (cyRef.current) {
@@ -603,9 +656,19 @@ const KnightsGraph = () => {
   }, [edgeStyle, showArrows, updateEdgeStyle]);
 
   const Force3DGraph = layout === '3d-force' ? (
-    <div style={{ width: '100%', height: '100%', border: '1px solid #ccc' }}>
+    <div style={{ width: '100%', height: '100%', border: '1px solid #ccc' }} className="force-graph-3d">
       <ForceGraph3D
+        ref={fgRef}
         graphData={graphData}
+        enableNodeDrag={false}
+        showNavInfo={false}
+        /*
+        onEnter={(engine) => {
+          engine.controls().enableDamping = true;
+          engine.controls().dampingFactor = 0.1;
+          engine.controls().rotateSpeed = 0.7;
+        }}
+        */
         nodeLabel="id"
         backgroundColor="#ffffff"
         linkColor={() => '#15465C'}
@@ -633,6 +696,21 @@ const KnightsGraph = () => {
       />
     </div>
   ) : null;
+
+  useEffect(() => {
+    if (!fgRef.current) return;
+    
+    const controls = fgRef.current.controls();
+    if (layout === '3d-force' && controls) {
+      
+      controls.autoRotate = wiggleMode;
+      controls.autoRotateSpeed = 0.5;
+      if (!wiggleMode) {
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.1;
+      }
+    }
+  }, [layout, wiggleMode]);
 
   return (
     <Card className="p-4 w-full">

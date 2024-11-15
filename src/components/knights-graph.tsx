@@ -56,7 +56,7 @@ declare module 'cytoscape' {
 }
 
 interface Node {
-  id: string;
+  id: string;  // Explicitly define id as string
   isDark: boolean;
   color: string;
 }
@@ -382,7 +382,7 @@ const KnightsGraph = () => {
             })
           );
           
-          const label = new SpriteText(node.id);
+          const label = new SpriteText(node.id as string);
           label.color = '#000000';
           label.textHeight = 6;
           label.renderOrder = 2;
@@ -477,7 +477,6 @@ const KnightsGraph = () => {
   );
 };
 
-// Add this to the Cytoscape type
 declare module 'cytoscape' {
   interface Core {
     hasInitializedExtensions?: boolean;

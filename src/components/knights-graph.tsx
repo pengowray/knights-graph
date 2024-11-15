@@ -507,6 +507,12 @@ const KnightsGraph = () => {
                 target: target,
                 data: { source: node.data.id, target: target }
               });
+              // doubled links in case two-way makes a difference for any layouts
+              links.push({
+                source: target,
+                target: node.data.id,
+                data: { source: target, target: node.data.id }
+              });
             }
           }
         });

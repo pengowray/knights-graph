@@ -53,6 +53,7 @@ declare module 'cytoscape' {
     gravity?: number;
     gravityRange?: number;
     idealInterClusterEdgeLengthCoefficient?: number;
+    refresh?: number;
     // Dagre layout options
     rankDir?: 'TB' | 'BT' | 'LR' | 'RL';
     ranker?: 'network-simplex' | 'tight-tree' | 'longest-path';
@@ -60,6 +61,7 @@ declare module 'cytoscape' {
     // Klay layout options
     nodeLayering?: string;
     nodePlacement?: string;
+    aspectRatio?: number;
     // ELK layout options
     'elk.spacing.nodeNode'?: number;
     'elk.layered.spacing.nodeNodeBetweenLayers'?: number;
@@ -81,8 +83,11 @@ interface Link {
   };
 }
 
-type LayoutName = '3d-force' | 'chessboard' | 'cose' | 'cose-bilkent' | 'cola' | 'cise' | 'avsdf' | 'dagre' | 
-                 'breadthfirst' | 'concentric' | 'elk-box' | 'elk-disco' | 'elk-layered' | 'elk-mrtree' | 'elk-stress' |
+// Update LayoutName type to include new variants
+type LayoutName = '3d-force' | 'chessboard' | 'cose' | 'cose-bilkent' | 'cola' | 
+                 'cise-ranks' | 'cise-quarters' | 'cise-none' | 'cise-markov' | 
+                 'avsdf' | 'dagre' | 'breadthfirst' | 'concentric' | 'elk-box' | 
+                 'elk-disco' | 'elk-layered' | 'elk-mrtree' | 'elk-stress' |
                  'fcose' | 'klay' | 'random';
 
 const KnightsGraph = () => {
@@ -92,6 +97,59 @@ const KnightsGraph = () => {
   const [edgeStyle, setEdgeStyle] = useState<'straight' | 'haystack' | 'bezier' | 'unbundled-bezier' | 'segments' | 'taxi'>('straight');
   const [showArrows, setShowArrows] = useState(false);
   const [graphData, setGraphData] = useState<{ nodes: Node[], links: Link[] }>({ nodes: [], links: [] });
+
+  const getRandomizedPositions = useCallback((cy: Cytoscape.Core) => {
+    const positions: {[key: string]: {x: number, y: number}} = {};
+    const width = cy.width();
+    const height = cy.height();
+    const padding = 50;  // Keep nodes away from edges
+    
+    cy.nodes().forEach(node => {
+      positions[node.id()] = {
+        x: padding + Math.random() * (width + 100),
+        y: padding + Math.random() * (height + 100)
+      };
+    });
+    return positions;
+  }, []);
+
+  const createChessClusters = useCallback((cy: Cytoscape.Core) => {
+    // Create clusters by ranks (rows) instead of files
+    const clusterArrays: string[][] = [];
+    for (let rank = 1; rank <= 8; rank++) {
+      const nodesInRank = cy.nodes().filter(node => node.id()[1] === rank.toString());
+      if (nodesInRank.length > 0) {
+        clusterArrays.push(nodesInRank.map(node => node.id()));
+      }
+    }
+    return clusterArrays;
+  }, []);
+
+  // Add clustering strategies
+  const createQuarterClusters = useCallback((cy: Cytoscape.Core) => {
+    const clusters: string[][] = Array(4).fill(null).map(() => []);
+    
+    cy.nodes().forEach(node => {
+      const file = node.id()[0].charCodeAt(0) - 'a'.charCodeAt(0);
+      const rank = parseInt(node.id()[1]) - 1;
+      const quarterIndex = (Math.floor(file/4) * 2) + Math.floor(rank/4);
+      clusters[quarterIndex].push(node.id());
+    });
+    
+    return clusters;
+  }, []);
+
+  // Predefined Markov clusters (calculated once and saved)
+  const markovClusters = [
+    ['a1', 'c1', 'b2', 'd2'],
+    ['e1', 'g1', 'f2', 'h2'],
+    ['b3', 'd3', 'a4', 'c4'],
+    ['f3', 'h3', 'e4', 'g4'],
+    ['a5', 'c5', 'b6', 'd6'],
+    ['e5', 'g5', 'f6', 'h6'],
+    ['b7', 'd7', 'a8', 'c8'],
+    ['f7', 'h7', 'e8', 'g8']
+  ];
 
   const applyLayout = useCallback(() => {
     const cy = cyRef.current;
@@ -104,6 +162,8 @@ const KnightsGraph = () => {
       spacingFactor: 1,
       animate: true,
       nodeDimensionsIncludeLabels: true,
+      // Add randomized starting positions for all non-chessboard layouts
+      positions: layout !== 'chessboard' ? getRandomizedPositions(cy) : undefined
     };
 
     if (layout === 'chessboard') {
@@ -144,19 +204,42 @@ const KnightsGraph = () => {
         maxSimulationTime: 1500,
       }).run();
     }
-    else if (layout === 'cise') {
+    else if (layout.startsWith('cise-')) {
+      let clusters;
+      
+      switch(layout) {
+        case 'cise-ranks':
+          clusters = createChessClusters(cy);
+          break;
+        case 'cise-quarters':
+          clusters = createQuarterClusters(cy);
+          break;
+        case 'cise-markov':
+          clusters = markovClusters;
+          // Log clusters in a format that can be copied back into code
+          console.log('Markov Clusters:');
+          console.log(JSON.stringify(clusters, null, 2));
+          break;
+        case 'cise-none':
+          clusters = [cy.nodes().map(node => node.id())]; // Single cluster
+          break;
+      }
+
       cy.layout({
         ...defaultSettings,
         name: 'cise',
-        nodeSeparation: 40,
+        clusters,
+        randomize: true,
+        refresh: 20,
+        nodeSeparation: 100,
         idealInterClusterEdgeLengthCoefficient: 1.4,
-        clusters: [],
         allowNodesInsideCircle: false,
         maxRatioOfNodesInsideCircle: 0.1,
         springCoeff: 0.45,
         nodeRepulsion: 4500,
         gravity: 0.25,
         gravityRange: 3.8,
+        animate: true
       }).run();
     }
     else if (layout === 'dagre') {
@@ -165,15 +248,16 @@ const KnightsGraph = () => {
         name: 'dagre',
         rankDir: 'TB',
         ranker: 'tight-tree',
-        rankSep: 50,  // Increase rank separation
-        nodeSpacing: 20,   // Increase node separation
+        rankSep: 50,
+        nodeSpacing: 20, 
       }).run();
     }
     else if (layout === 'cose-bilkent') {
       cy.layout({
         ...defaultSettings,
         name: 'cose-bilkent',
-        nodeRepulsion: 4500,
+        nodeRepulsion: 10000, // 4500,
+        nodeSpacing: 100, 
       }).run();
     }
     else if (layout === 'avsdf') {
@@ -187,18 +271,20 @@ const KnightsGraph = () => {
       cy.layout({
         ...defaultSettings,
         name: 'klay',
-        nodeLayering: 'NETWORK_SIMPLEX',
-        nodePlacement: 'LINEAR_SEGMENTS',
+        nodeLayering: 'NETWORK_SIMPLEX', // NETWORK_SIMPLEX, LONGEST_PATH, INTERACTIVE
+        nodePlacement: 'LINEAR_SEGMENTS', // INTERACTIVE
+        aspectRatio: 1,
       }).run();
     }
     else if (['cose', 'breadthfirst', 'fcose', 'random', 'concentric'].includes(layout)) {
       cy.layout({
         ...defaultSettings,
         name: layout,
-        randomize: layout === 'random',
+        // Randomize initial positions for force-directed layouts
+        randomize: layout === 'random' || layout === 'fcose' || layout === 'cose',
       }).run();
     }
-  }, [layout]);
+  }, [layout, getRandomizedPositions, createChessClusters, createQuarterClusters]);
 
   const updateEdgeStyle = useCallback(() => {
     const cy = cyRef.current;
@@ -450,7 +536,6 @@ const KnightsGraph = () => {
           <option value="fcose">fCoSE</option>
           <option value="avsdf">Avsdf</option>
           <option value="breadthfirst">Breadthfirst</option>
-          <option value="cise">CiSE</option>
           <option value="cola">Cola</option>
           <option value="concentric">Concentric</option>
           <option value="cose">Cose</option>
@@ -462,6 +547,10 @@ const KnightsGraph = () => {
           <option value="elk-mrtree">ELK (mrtree)</option>
           <option value="elk-stress">ELK (stress)</option>
           <option value="klay">Klay</option>
+          <option value="cise-ranks">CiSE (by ranks)</option>
+          <option value="cise-quarters">CiSE (4x4 quarters)</option>
+          <option value="cise-markov">CiSE (Markov clusters)</option>
+          <option value="cise-none">CiSE (no clusters)</option>
         </select>
       </div>
       <div className="mb-4 text-center">

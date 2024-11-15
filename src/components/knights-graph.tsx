@@ -608,7 +608,7 @@ const KnightsGraph = () => {
         y: distance * Math.sin(angle),
         z: distance
       });
-    }, 33);
+    }, 16);
 
     return () => {
       clearInterval(interval);

@@ -103,6 +103,7 @@ const KnightsGraph = () => {
   const [wiggleMode, setWiggleMode] = useState(false); // Add wiggleMode state
   const [cameraDistance, setCameraDistance] = useState<number | null>(null);
   const [savedCameraPosition, setSavedCameraPosition] = useState<{ x: number, y: number, z: number } | null>(null);
+  const [is3DChessboard, setIs3DChessboard] = useState(false);
 
   const getRandomizedPositions = useCallback((cy: Cytoscape.Core) => {
     const positions: {[key: string]: {x: number, y: number}} = {};
@@ -658,6 +659,68 @@ const KnightsGraph = () => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [layout]);
 
+  // Modify the useEffect for b key handling
+  useEffect(() => {
+    const handle3DKeyPress = (event: KeyboardEvent) => {
+      if (event.key === 'b' && layout === '3d-force' && fgRef.current) {
+        setIs3DChessboard(prev => !prev);
+        
+        const fg = fgRef.current;
+        // Create new nodes array with updated positions
+        const updatedNodes = [...graphData.nodes].map(node => {
+          const file = node.id.charCodeAt(0) - 'a'.charCodeAt(0);
+          const rank = parseInt(node.id[1]) - 1;
+          
+          if (is3DChessboard) {
+            // Reset to force-directed positions by removing fixed coordinates
+            const { fx, fy, fz, ...rest } = node as any;
+            return rest;
+          } else {
+            // Set fixed chessboard positions
+            return {
+              ...node,
+              fx: (file - 3.5) * 40,
+              fy: (rank - 3.5) * 40,
+              fz: 0
+            };
+          }
+        });
+
+        // Reconstruct links based on knight's move pattern
+        const dirs = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
+        const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+        const ranks = ['1', '2', '3', '4', '5', '6', '7', '8'];
+        
+        const updatedLinks = updatedNodes.flatMap(node => {
+          const file = node.id.charCodeAt(0) - 'a'.charCodeAt(0);
+          const rank = parseInt(node.id[1]) - 1;
+          
+          return dirs
+            .map(([df, dr]) => {
+              const newFile = file + df;
+              const newRank = rank + dr;
+              
+              if (newFile >= 0 && newFile < 8 && newRank >= 0 && newRank < 8) {
+                const target = `${files[newFile]}${ranks[newRank]}`;
+                return { source: node.id, target };
+              }
+              return null;
+            })
+            .filter((link): link is Link => link !== null);
+        });
+
+        // Update graph data with new node positions and links
+        setGraphData({
+          nodes: updatedNodes,
+          links: updatedLinks
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handle3DKeyPress);
+    return () => window.removeEventListener('keydown', handle3DKeyPress);
+  }, [layout, is3DChessboard, graphData]);
+
   // Apply layout when it changes
   useEffect(() => {
     if (cyRef.current) {
@@ -677,7 +740,7 @@ const KnightsGraph = () => {
     }
   }, [edgeStyle, showArrows, updateEdgeStyle]);
 
-  const useCube = true;
+  const useCube = false;
   const Force3DGraph = layout === '3d-force' ? (
     <div style={{ width: '100%', height: '100%', border: '1px solid #ccc' }} className="force-graph-3d">
       <ForceGraph3D

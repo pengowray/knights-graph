@@ -32,6 +32,7 @@ declare module 'cytoscape' {
       algorithm: string;
       'elk.spacing.nodeNode'?: number;
       'elk.layered.spacing.nodeNodeBetweenLayers'?: number;
+      'elk.aspectRatio'?: number;
     };
     name: string;
     fit?: boolean;
@@ -85,7 +86,7 @@ interface Link {
 
 // Update LayoutName type to include new variants
 type LayoutName = '3d-force' | 'chessboard' | 'cose' | 'cose-bilkent' | 'cola' | 
-                 'cise-ranks' | 'cise-quarters' | 'cise-none' | 'cise-markov' | 'cise-single' |  // Added cise-single
+                 'cise-ranks' | 'cise-quarters' | 'cise-whole' | 'cise-colors' | 'cise-singles' | 
                  'avsdf' | 'dagre' | 'breadthfirst' | 'concentric' | 'elk-box' | 
                  'elk-disco' | 'elk-layered' | 'elk-mrtree' | 'elk-stress' |
                  'fcose' | 'klay' | 'random';
@@ -139,17 +140,35 @@ const KnightsGraph = () => {
     return clusters;
   }, []);
 
-  // Predefined Markov clusters (calculated once and saved)
-  const markovClusters = [
-    ['a1', 'c1', 'b2', 'd2'],
-    ['e1', 'g1', 'f2', 'h2'],
-    ['b3', 'd3', 'a4', 'c4'],
-    ['f3', 'h3', 'e4', 'g4'],
-    ['a5', 'c5', 'b6', 'd6'],
-    ['e5', 'g5', 'f6', 'h6'],
-    ['b7', 'd7', 'a8', 'c8'],
-    ['f7', 'h7', 'e8', 'g8']
-  ];
+  // Add new clustering function after createQuarterClusters
+  const createColorClusters = useCallback((cy: Cytoscape.Core) => {
+    const darkSquares: string[] = [];
+    const lightSquares: string[] = [];
+    
+    cy.nodes().forEach(node => {
+      const id = node.id();
+      const file = id.charCodeAt(0) - 'a'.charCodeAt(0);
+      const rank = parseInt(id[1]) - 1;
+      if ((file + rank) % 2 === 0) {
+        darkSquares.push(id);
+      } else {
+        lightSquares.push(id);
+      }
+    });
+    
+    return [darkSquares, lightSquares];
+  }, []);
+
+  // Add after createColorClusters
+  const createEdgePairClusters = useCallback((cy: Cytoscape.Core) => {
+    const clusters: string[][] = [];
+    
+    cy.edges().forEach(edge => {
+      clusters.push([edge.source().id(), edge.target().id()]);
+    });
+    
+    return clusters;
+  }, []);
 
   const applyLayout = useCallback(() => {
     const cy = cyRef.current;
@@ -159,7 +178,7 @@ const KnightsGraph = () => {
     const defaultSettings = {
       fit: true,
       padding: 20,
-      spacingFactor: 1,
+      spacingFactor: 1.5,
       animate: true,
       nodeDimensionsIncludeLabels: true,
       // Add randomized starting positions for all non-chessboard layouts
@@ -185,6 +204,31 @@ const KnightsGraph = () => {
         fit: true
       }).run();
     } 
+    else if (layout === 'elk-layered') {
+      cy.layout({
+        ...defaultSettings,
+        name: 'elk',
+        padding: 20,
+        elk: { 
+          algorithm: 'layered',
+          'elk.spacing.nodeNode': 80,
+          'elk.layered.spacing.nodeNodeBetweenLayers': 100,
+        },
+      }).run();
+    }
+    else if (layout === 'elk-box') {
+      cy.layout({
+        ...defaultSettings,
+        name: 'elk',
+        //padding: 20,
+        aspectRatio: 2,
+        elk: { 
+          algorithm: 'box',
+          'elk.aspectRatio': 2
+        },
+        
+      }).run();
+    }
     else if (layout.startsWith('elk-')) {
       cy.layout({
         ...defaultSettings,
@@ -192,8 +236,6 @@ const KnightsGraph = () => {
         padding: 20,
         elk: { 
           algorithm: layout.split('-')[1],
-          'elk.spacing.nodeNode': 80,  // Increase node spacing
-          'elk.layered.spacing.nodeNodeBetweenLayers': 100,  // Increase layer spacing
         },
       }).run();
     }
@@ -214,20 +256,17 @@ const KnightsGraph = () => {
         case 'cise-quarters':
           clusters = createQuarterClusters(cy);
           break;
-        case 'cise-markov':
-          clusters = markovClusters;
-          // Log clusters in a format that can be copied back into code
-          console.log('Markov Clusters:');
-          console.log(JSON.stringify(clusters, null, 2));
+        case 'cise-colors':
+          clusters = createColorClusters(cy);
           break;
-        case 'cise-single':
+        case 'cise-singles':
           // Each node in its own cluster
           clusters = cy.nodes().map(node => [node.id()]);
+          //clusters = createEdgePairClusters(cy);
           break;
-        case 'cise-none':
+        case 'cise-whole':
           clusters = [cy.nodes().map(node => node.id())]; // Single cluster
           break;
-          
       }
 
       cy.layout({
@@ -235,15 +274,16 @@ const KnightsGraph = () => {
         name: 'cise',
         clusters,
         randomize: true,
-        refresh: 20,
-        nodeSeparation: 100,
+        refresh: 10,
+        nodeSeparation: 2,
+        spacingFactor: 1,
         idealInterClusterEdgeLengthCoefficient: 1.4,
         allowNodesInsideCircle: false,
         maxRatioOfNodesInsideCircle: 0.1,
         springCoeff: 0.45,
-        nodeRepulsion: 4500,
+        nodeRepulsion: 4500, 
         gravity: 0.25,
-        gravityRange: 3.8,
+        gravityRange: layout === 'cise-singles' ? 1.5 : 3.8, // Smaller range for single-node
         animate: true
       }).run();
     }
@@ -289,7 +329,7 @@ const KnightsGraph = () => {
         randomize: layout === 'random' || layout === 'fcose' || layout === 'cose',
       }).run();
     }
-  }, [layout, getRandomizedPositions, createChessClusters, createQuarterClusters]);
+  }, [layout, getRandomizedPositions, createChessClusters, createQuarterClusters, createColorClusters, createEdgePairClusters]);
 
   const updateEdgeStyle = useCallback(() => {
     const cy = cyRef.current;
@@ -552,11 +592,11 @@ const KnightsGraph = () => {
           <option value="elk-mrtree">ELK (mrtree)</option>
           <option value="elk-stress">ELK (stress)</option>
           <option value="klay">Klay</option>
-          <option value="cise-ranks">CiSE (by ranks)</option>
-          <option value="cise-quarters">CiSE (4x4 quarters)</option>
-          <option value="cise-markov">CiSE (Markov clusters)</option>
-          <option value="cise-single">CiSE (single node clusters)</option>
-          <option value="cise-none">CiSE (no clusters)</option>
+          <option value="cise-whole">CiSE (whole)</option>
+          <option value="cise-quarters">CiSE (quarters)</option>
+          <option value="cise-colors">CiSE (black/white)</option>
+          <option value="cise-ranks">CiSE (ranks)</option>
+          <option value="cise-singles">CiSE (singles)</option>
         </select>
       </div>
       <div className="mb-4 text-center">

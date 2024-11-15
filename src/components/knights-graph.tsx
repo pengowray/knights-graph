@@ -63,6 +63,10 @@ interface Node {
 interface Link {
   source: string;
   target: string;
+  data?: {
+    source: string;
+    target: string;
+  };
 }
 
 type LayoutName = '3d-force' | 'chessboard' | 'cose' | 'cose-bilkent' | 'cola' | 'cise' | 'avsdf' | 'dagre' | 
@@ -247,7 +251,11 @@ const KnightsGraph = () => {
         if (newFile >= 0 && newFile < 8 && newRank >= 0 && newRank < 8) {
           const target = `${files[newFile]}${ranks[newRank]}`;
           if (node.data.id < target) {
-            links.push({ data: { source: node.data.id, target: target } });
+            links.push({
+              source: node.data.id,
+              target: target,
+              data: { source: node.data.id, target: target }
+            });
           }
         }
       });

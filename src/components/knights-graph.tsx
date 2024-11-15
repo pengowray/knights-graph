@@ -85,7 +85,7 @@ interface Link {
 
 // Update LayoutName type to include new variants
 type LayoutName = '3d-force' | 'chessboard' | 'cose' | 'cose-bilkent' | 'cola' | 
-                 'cise-ranks' | 'cise-quarters' | 'cise-none' | 'cise-markov' | 
+                 'cise-ranks' | 'cise-quarters' | 'cise-none' | 'cise-markov' | 'cise-single' |  // Added cise-single
                  'avsdf' | 'dagre' | 'breadthfirst' | 'concentric' | 'elk-box' | 
                  'elk-disco' | 'elk-layered' | 'elk-mrtree' | 'elk-stress' |
                  'fcose' | 'klay' | 'random';
@@ -220,9 +220,14 @@ const KnightsGraph = () => {
           console.log('Markov Clusters:');
           console.log(JSON.stringify(clusters, null, 2));
           break;
+        case 'cise-single':
+          // Each node in its own cluster
+          clusters = cy.nodes().map(node => [node.id()]);
+          break;
         case 'cise-none':
           clusters = [cy.nodes().map(node => node.id())]; // Single cluster
           break;
+          
       }
 
       cy.layout({
@@ -550,6 +555,7 @@ const KnightsGraph = () => {
           <option value="cise-ranks">CiSE (by ranks)</option>
           <option value="cise-quarters">CiSE (4x4 quarters)</option>
           <option value="cise-markov">CiSE (Markov clusters)</option>
+          <option value="cise-single">CiSE (single node clusters)</option>
           <option value="cise-none">CiSE (no clusters)</option>
         </select>
       </div>

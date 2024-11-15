@@ -63,6 +63,7 @@ declare module 'cytoscape' {
     nodeLayering?: string;
     nodePlacement?: string;
     aspectRatio?: number;
+    direction?: string;
     // ELK layout options
     'elk.spacing.nodeNode'?: number;
     'elk.layered.spacing.nodeNodeBetweenLayers'?: number;
@@ -383,9 +384,11 @@ const KnightsGraph = () => {
       cy.layout({
         ...defaultSettings,
         name: 'klay',
-        nodeLayering: 'NETWORK_SIMPLEX', // NETWORK_SIMPLEX, LONGEST_PATH, INTERACTIVE
-        nodePlacement: 'LINEAR_SEGMENTS', // INTERACTIVE
+        //nodeLayering: 'NETWORK_SIMPLEX', // NETWORK_SIMPLEX, LONGEST_PATH, INTERACTIVE
+        //nodePlacement: 'BRANDES_KOEPF', // BRANDES_KOEPF, LINEAR_SEGMENTS, INTERACTIVE, SIMPLE
+        //direction: 'LEFT', // DOWN, RIGHT, LEFT, UP
         aspectRatio: 1,
+        //spacing: 20
       }).run();
     }
     else if (layout === 'breadthfirst') {
@@ -746,7 +749,13 @@ const KnightsGraph = () => {
       <ForceGraph3D
         ref={fgRef}
         graphData={graphData}
-        enableNodeDrag={false}
+        enableNodeDrag={true}
+        onNodeDragEnd={node => {
+          // When node dragging ends, update node's fixed position
+          node.fx = node.x;
+          node.fy = node.y;
+          node.fz = node.z;
+        }}
         showNavInfo={false}
         nodeLabel="id"
         backgroundColor="#ffffff"

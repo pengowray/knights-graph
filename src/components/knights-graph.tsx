@@ -446,6 +446,16 @@ const KnightsGraph = () => {
     ]);
   }, []);
 
+  // Add this utility function inside the component
+  const shuffleArray = <T,>(array: T[]): T[] => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
   // Initialize cytoscape instance once on mount
   useEffect(() => {
     let cy: Cytoscape.Core | undefined;
@@ -469,7 +479,7 @@ const KnightsGraph = () => {
 
       const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
       const ranks = ['1', '2', '3', '4', '5', '6', '7', '8'];
-      const nodes = [];
+      let nodes = [];
       for (let i = 0; i < 8; i++) {
         for (let j = 0; j < 8; j++) {
           nodes.push({
@@ -477,6 +487,7 @@ const KnightsGraph = () => {
           });
         }
       }
+      nodes = shuffleArray(nodes); // Randomize node order
 
       const links: Link[] = [];
       const dirs = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
@@ -501,7 +512,7 @@ const KnightsGraph = () => {
         });
       });
 
-      cy.add([...nodes, ...links]);
+      cy.add([...nodes, ...shuffleArray(links)]); // Randomize edge order
       cyRef.current = cy;
 
       // Apply initial layout after a small delay
@@ -524,9 +535,7 @@ const KnightsGraph = () => {
     const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
     const ranks = ['1', '2', '3', '4', '5', '6', '7', '8'];
     
-    const nodes = [];
-    const links = [];
-
+    let nodes = [];
     for (let i = 0; i < 8; i++) {
       for (let j = 0; j < 8; j++) {
         nodes.push({
@@ -537,6 +546,19 @@ const KnightsGraph = () => {
       }
     }
 
+    // Define shuffleArray inside useEffect to avoid dependency issues
+    const shuffleArray = <T,>(array: T[]): T[] => {
+      const shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    };
+
+    nodes = shuffleArray(nodes);
+
+    const links = [];
     const dirs = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
     nodes.forEach((node) => {
       const file = files.indexOf(node.id[0]);
@@ -552,8 +574,8 @@ const KnightsGraph = () => {
       });
     });
 
-    setGraphData({ nodes, links });
-  }, []);
+    setGraphData({ nodes, links: shuffleArray(links) });
+  }, []); // Remove shuffleArray from dependencies
 
   // Apply layout when it changes
   useEffect(() => {

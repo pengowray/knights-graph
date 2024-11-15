@@ -98,6 +98,7 @@ const KnightsGraph = () => {
   const [edgeStyle, setEdgeStyle] = useState<'straight' | 'haystack' | 'bezier' | 'unbundled-bezier' | 'segments' | 'taxi'>('straight');
   const [showArrows, setShowArrows] = useState(false);
   const [graphData, setGraphData] = useState<{ nodes: Node[], links: Link[] }>({ nodes: [], links: [] });
+  const [nodeSize, setNodeSize] = useState(34); // Default node size
 
   const getRandomizedPositions = useCallback((cy: Cytoscape.Core) => {
     const positions: {[key: string]: {x: number, y: number}} = {};
@@ -352,6 +353,23 @@ const KnightsGraph = () => {
     });
   }, [edgeStyle, showArrows, applyLayout]);
 
+  const updateNodeSize = useCallback(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
+  
+    requestAnimationFrame(() => {
+      if (!cy) return;
+      cy.style()
+        .selector('node')
+        .style({
+          width: nodeSize,
+          height: nodeSize,
+          'font-size': `${nodeSize / 1.4}px`, // Adjust font size proportionally
+        })
+        .update();
+    });
+  }, [nodeSize]);
+
   const registerExtensions = useCallback(async () => {
     if (typeof window === 'undefined') return;
     
@@ -529,6 +547,12 @@ const KnightsGraph = () => {
     }
   }, [updateEdgeStyle]);
 
+  useEffect(() => {
+    if (cyRef.current) {
+      updateNodeSize();
+    }
+  }, [nodeSize, updateNodeSize]);
+
   const Force3DGraph = layout === '3d-force' ? (
     <div style={{ width: '100%', height: '100%', border: '1px solid #ccc' }}>
       <ForceGraph3D
@@ -538,7 +562,7 @@ const KnightsGraph = () => {
         linkColor={() => '#15465C'}
         nodeThreeObject={node => {
           const sphere = new Mesh(
-            new SphereGeometry(3.5),
+            new SphereGeometry(nodeSize / 10), // Adjust sphere size proportionally
             new MeshLambertMaterial({
               color: node.isDark ? '#B58863' : '#F0D9B5',
               transparent: true,
@@ -549,7 +573,7 @@ const KnightsGraph = () => {
           
           const label = new SpriteText(node.id as string);
           label.color = '#000000';
-          label.textHeight = 6;
+          label.textHeight = nodeSize / 5; // Adjust text height proportionally
           label.renderOrder = 2;
           label.material.depthTest = false;
           label.material.depthWrite = false;
@@ -624,7 +648,18 @@ const KnightsGraph = () => {
         />
         <label htmlFor="show-arrows">Show Arrow Heads</label>
       </div>
-
+      <div className="mb-4 text-center">
+        <label htmlFor="node-size-slider" className="mr-2">Node Size:</label>
+        <input
+          type="range"
+          id="node-size-slider"
+          min="10"
+          max="100"
+          value={nodeSize}
+          onChange={(e) => setNodeSize(Number(e.target.value))}
+          className="border rounded px-2 py-1"
+        />
+      </div>
       <div style={{ 
         width: '100vw',
         height: '80vh',

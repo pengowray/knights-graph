@@ -268,7 +268,7 @@ const KnightsGraph = () => {
       cy.destroy();
       cyRef.current = undefined;
     };
-  }, []);
+  }, [edgeStyle, showArrows]); // Add these dependencies
 
   // Add this after the existing useEffect that initializes Cytoscape
   useEffect(() => {

@@ -1,22 +1,30 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, Suspense } from 'react';
 import Cytoscape from 'cytoscape';
-import coseBilkent from 'cytoscape-cose-bilkent';
-import cola from 'cytoscape-cola';
-import avsdf from 'cytoscape-avsdf';
-import dagre from 'cytoscape-dagre';
-import elk from 'cytoscape-elk';
-import fcose from 'cytoscape-fcose';
-import klay from 'cytoscape-klay';
-import cise from 'cytoscape-cise';
-import ForceGraph3D from 'react-force-graph-3d';
+import { Card } from '@/components/ui/card';
+import dynamic from 'next/dynamic';
 import SpriteText from 'three-spritetext';
 import { Mesh, SphereGeometry, MeshLambertMaterial, DoubleSide } from 'three';
+import type { Mesh as MeshType, SphereGeometry as SphereGeometryType, MeshLambertMaterial as MeshLambertMaterialType, DoubleSide as DoubleSideType } from 'three';
 
-import { Card } from '@/components/ui/card';
+// Dynamic imports for Cytoscape extensions
+const layoutExtensions = {
+  coseBilkent: () => import('cytoscape-cose-bilkent'),
+  cola: () => import('cytoscape-cola'),
+  avsdf: () => import('cytoscape-avsdf'),
+  dagre: () => import('cytoscape-dagre'),
+  elk: () => import('cytoscape-elk'),
+  fcose: () => import('cytoscape-fcose'),
+  klay: () => import('cytoscape-klay'),
+  cise: () => import('cytoscape-cise'),
+};
 
-// Remove the global registration
+// Dynamic import for ForceGraph3D with no SSR
+const ForceGraph3D = dynamic(() => import('react-force-graph-3d'), {
+  ssr: false,
+  loading: () => <div>Loading 3D graph...</div>
+});
 
 declare module 'cytoscape' {
   interface BaseLayoutOptions {
@@ -75,6 +83,15 @@ const KnightsGraph = () => {
     const cy = cyRef.current;
     if (!cy || layout === '3d-force') return;
 
+    // Add default layout settings
+    const defaultSettings = {
+      fit: true,
+      padding: 50,
+      spacingFactor: 1.5,
+      animate: false,
+      nodeDimensionsIncludeLabels: true,
+    };
+
     if (layout === 'chessboard') {
       const positions: {[key: string]: {x: number, y: number}} = {};
       
@@ -96,62 +113,55 @@ const KnightsGraph = () => {
     } 
     else if (layout.startsWith('elk-')) {
       cy.layout({
+        ...defaultSettings,
         name: 'elk',
         elk: { algorithm: layout.split('-')[1] },
-        fit: true,
-        padding: 50
       }).run();
     }
     else if (layout === 'cola') {
       cy.layout({
+        ...defaultSettings,
         name: 'cola',
-        fit: true,
-        padding: 50,
-        nodeSpacing: 30,
-        maxSimulationTime: 1500
+        nodeSpacing: 50,
+        maxSimulationTime: 1500,
       }).run();
     }
     else if (layout === 'cise') {
       cy.layout({
+        ...defaultSettings,
         name: 'cise',
-        fit: true,
-        padding: 50,
-        nodeSeparation: 75,
+        nodeSeparation: 100,
         idealInterClusterEdgeLengthCoefficient: 1.4,
-        clusters: [], // No specific clusters
+        clusters: [],
         allowNodesInsideCircle: false,
         maxRatioOfNodesInsideCircle: 0.1,
         springCoeff: 0.45,
         nodeRepulsion: 4500,
         gravity: 0.25,
-        gravityRange: 3.8
+        gravityRange: 3.8,
       }).run();
     }
     else if (layout === 'dagre') {
       cy.layout({
+        ...defaultSettings,
         name: 'dagre',
-        fit: true,
-        padding: 50,
-        spacingFactor: 1.25
+        rankDir: 'LR',
+        ranker: 'tight-tree',
       }).run();
     }
     else if (layout === 'cose-bilkent') {
       cy.layout({
+        ...defaultSettings,
         name: 'cose-bilkent',
-        fit: true,
-        padding: 50,
-        nodeDimensionsIncludeLabels: true
+        nodeRepulsion: 4500,
       }).run();
     }
     else if (['cose', 'breadthfirst', 'fcose', 'klay', 'random', 'avsdf', 'concentric'].includes(layout)) {
-      const commonOptions = {
+      cy.layout({
+        ...defaultSettings,
         name: layout,
-        fit: true,
-        padding: 50,
         randomize: layout === 'random',
-        animate: false
-      };
-      cy.layout(commonOptions).run();
+      }).run();
     }
   }, [layout]);
 
@@ -173,114 +183,126 @@ const KnightsGraph = () => {
     });
   }, [edgeStyle, showArrows]);
 
-  // Add this new function
-  const registerExtensions = useCallback(() => {
+  const registerExtensions = useCallback(async () => {
     if (typeof window === 'undefined') return;
     
     if (!Cytoscape.prototype.hasInitializedExtensions) {
-      coseBilkent(Cytoscape);
-      cola(Cytoscape);
-      avsdf(Cytoscape);
-      dagre(Cytoscape);
-      elk(Cytoscape);
-      fcose(Cytoscape);
-      klay(Cytoscape);
-      cise(Cytoscape);
-      
-      // Mark extensions as initialized
-      Cytoscape.prototype.hasInitializedExtensions = true;
+      try {
+        const extensions = await Promise.all([
+          layoutExtensions.coseBilkent(),
+          layoutExtensions.cola(),
+          layoutExtensions.avsdf(),
+          layoutExtensions.dagre(),
+          layoutExtensions.elk(),
+          layoutExtensions.fcose(),
+          layoutExtensions.klay(),
+          layoutExtensions.cise(),
+        ]);
+
+        extensions.forEach(ext => ext.default(Cytoscape));
+        Cytoscape.prototype.hasInitializedExtensions = true;
+      } catch (error) {
+        console.error('Error loading Cytoscape extensions:', error);
+      }
     }
   }, []);
 
   // Initialize cytoscape instance once on mount
   useEffect(() => {
-    if (!containerRef.current) return;
-    
-    // Register extensions before creating Cytoscape instance
-    registerExtensions();
-    
-    const cy = Cytoscape({
-      container: containerRef.current,
-      style: [
-        {
-          selector: 'node',
-          style: {
-            width: 20,
-            height: 20,
-            shape: 'rectangle',
-            label: 'data(id)',
-            'text-valign': 'center',
-            'text-halign': 'center',
-            'background-color': (ele: Cytoscape.NodeSingular) => (ele.data('isDark') ? '#B58863' : '#F0D9B5'),
-            'color': (ele: Cytoscape.NodeSingular) => (ele.data('isDark') ? 'white' : 'black'),
-            'border-color': '#262D31',
-            'border-width': 1,
+    let cy: Cytoscape.Core | undefined;
+
+    const initCytoscape = async () => {
+      if (!containerRef.current) return;
+      
+      await registerExtensions();
+      
+      cy = Cytoscape({
+        container: containerRef.current,
+        style: [
+          {
+            selector: 'node',
+            style: {
+              width: 20,
+              height: 20,
+              shape: 'rectangle',
+              label: 'data(id)',
+              'text-valign': 'center',
+              'text-halign': 'center',
+              'background-color': (ele: Cytoscape.NodeSingular) => (ele.data('isDark') ? '#B58863' : '#F0D9B5'),
+              'color': (ele: Cytoscape.NodeSingular) => (ele.data('isDark') ? 'white' : 'black'),
+              'border-color': '#262D31',
+              'border-width': 1,
+            },
           },
-        },
-        {
-          selector: 'edge',
-          style: {
-            width: 1,
-            'line-color': '#15465C',
-            'curve-style': edgeStyle,
-            'source-arrow-shape': showArrows ? 'triangle' : 'none',
-            'target-arrow-shape': showArrows ? 'triangle' : 'none',
-            'arrow-scale': 0.6,
-            'control-point-step-size': 40,
-            'taxi-direction': 'horizontal',
-            'taxi-turn': 50,
-            'segment-distances': 20,
-            'segment-weights': 0.5
+          {
+            selector: 'edge',
+            style: {
+              width: 1,
+              'line-color': '#15465C',
+              'curve-style': edgeStyle,
+              'source-arrow-shape': showArrows ? 'triangle' : 'none',
+              'target-arrow-shape': showArrows ? 'triangle' : 'none',
+              'arrow-scale': 0.6,
+              'control-point-step-size': 40,
+              'taxi-direction': 'horizontal',
+              'taxi-turn': 50,
+              'segment-distances': 20,
+              'segment-weights': 0.5
+            },
           },
-        },
-      ],
-      wheelSensitivity: 0.2,
-      minZoom: 0.5,
-      maxZoom: 2
-    });
-
-    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-    const ranks = ['1', '2', '3', '4', '5', '6', '7', '8'];
-    const nodes = [];
-    for (let i = 0; i < 8; i++) {
-      for (let j = 0; j < 8; j++) {
-        nodes.push({
-          data: { id: `${files[i]}${ranks[j]}`, isDark: (i + j) % 2 === 0 },
-        });
-      }
-    }
-
-    const links: Link[] = [];
-    const dirs = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
-    nodes.forEach((node) => {
-      const file = files.indexOf(node.data.id[0]);
-      const rank = ranks.indexOf(node.data.id[1]);
-
-      dirs.forEach(([df, dr]) => {
-        const newFile = file + df;
-        const newRank = rank + dr;
-
-        if (newFile >= 0 && newFile < 8 && newRank >= 0 && newRank < 8) {
-          const target = `${files[newFile]}${ranks[newRank]}`;
-          if (node.data.id < target) {
-            links.push({
-              source: node.data.id,
-              target: target,
-              data: { source: node.data.id, target: target }
-            });
-          }
-        }
+        ],
+        wheelSensitivity: 0.2,
+        minZoom: 0.5,
+        maxZoom: 2
       });
-    });
 
-    cy.add([...nodes, ...links]);
-    cyRef.current = cy;
+      const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+      const ranks = ['1', '2', '3', '4', '5', '6', '7', '8'];
+      const nodes = [];
+      for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+          nodes.push({
+            data: { id: `${files[i]}${ranks[j]}`, isDark: (i + j) % 2 === 0 },
+          });
+        }
+      }
+
+      const links: Link[] = [];
+      const dirs = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
+      nodes.forEach((node) => {
+        const file = files.indexOf(node.data.id[0]);
+        const rank = ranks.indexOf(node.data.id[1]);
+
+        dirs.forEach(([df, dr]) => {
+          const newFile = file + df;
+          const newRank = rank + dr;
+
+          if (newFile >= 0 && newFile < 8 && newRank >= 0 && newRank < 8) {
+            const target = `${files[newFile]}${ranks[newRank]}`;
+            if (node.data.id < target) {
+              links.push({
+                source: node.data.id,
+                target: target,
+                data: { source: node.data.id, target: target }
+              });
+            }
+          }
+        });
+      });
+
+      cy.add([...nodes, ...links]);
+      cyRef.current = cy;
+    };
+
+    initCytoscape();
 
     return () => {
-      cy.destroy();
-      cyRef.current = undefined;
+      if (cy) {
+        cy.destroy();
+        cyRef.current = undefined;
+      }
     };
-  }, [edgeStyle, showArrows, registerExtensions]); // Add registerExtensions to dependencies
+  }, [edgeStyle, showArrows, registerExtensions]);
 
   // Add this after the existing useEffect that initializes Cytoscape
   useEffect(() => {
@@ -332,6 +354,38 @@ const KnightsGraph = () => {
       updateEdgeStyle();
     }
   }, [updateEdgeStyle]);
+
+  const Force3DGraph = layout === '3d-force' ? (
+    <div style={{ width: '100%', height: '100%', border: '1px solid #ccc' }}>
+      <ForceGraph3D
+        graphData={graphData}
+        nodeLabel="id"
+        backgroundColor="#ffffff"
+        linkColor={() => '#15465C'}
+        nodeThreeObject={node => {
+          const sphere = new Mesh(
+            new SphereGeometry(3.5),
+            new MeshLambertMaterial({
+              color: node.isDark ? '#B58863' : '#F0D9B5',
+              transparent: true,
+              opacity: 0.4,
+              side: DoubleSide
+            })
+          );
+          
+          const label = new SpriteText(node.id);
+          label.color = '#000000';
+          label.textHeight = 6;
+          label.renderOrder = 2;
+          label.material.depthTest = false;
+          label.material.depthWrite = false;
+          
+          sphere.add(label);
+          return sphere;
+        }}
+      />
+    </div>
+  ) : null;
 
   return (
     <Card className="p-4 w-full">
@@ -408,41 +462,7 @@ const KnightsGraph = () => {
             display: layout === '3d-force' ? 'none' : 'block'
           }}
         />
-        
-        {layout === '3d-force' && (
-          <div style={{ width: '100%', height: '100%', border: '1px solid #ccc' }}>
-            <ForceGraph3D
-              graphData={graphData}
-              nodeLabel="id"
-              backgroundColor="#ffffff"
-              linkColor={() => '#15465C'}
-              nodeThreeObject={node => {
-                // Create sphere with transparency
-                const sphere = new Mesh(
-                  new SphereGeometry(3.5),
-                  new MeshLambertMaterial({
-                    color: node.isDark ? '#B58863' : '#F0D9B5',
-                    transparent: true,
-                    opacity: 0.4,
-                    side: DoubleSide                    
-                  })
-                );
-                
-                // Create text label at same position as sphere
-                const label = new SpriteText(node.id);
-                label.color = '#000000';
-                label.textHeight = 6;
-                label.renderOrder = 2; // Render after spheres
-                label.material.depthTest = false; // Always render on top
-                label.material.depthWrite = false; // Don't write to depth buffer
-                
-                // Add label as child of sphere
-                sphere.add(label);
-                return sphere;
-              }}
-            />
-          </div>
-        )}
+        {Force3DGraph}
       </div>
     </Card>
   );
@@ -455,4 +475,4 @@ declare module 'cytoscape' {
   }
 }
 
-export default KnightsGraph;
+export default dynamic(() => Promise.resolve(KnightsGraph), { ssr: false });

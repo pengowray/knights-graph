@@ -12,6 +12,7 @@ import klay from 'cytoscape-klay';
 import cise from 'cytoscape-cise';
 import ForceGraph3D from 'react-force-graph-3d';
 import SpriteText from 'three-spritetext';
+import { Mesh, SphereGeometry, MeshLambertMaterial, DoubleSide } from 'three';
 
 import { Card } from '@/components/ui/card';
 
@@ -399,13 +400,29 @@ const KnightsGraph = () => {
               nodeLabel="id"
               backgroundColor="#ffffff"
               linkColor={() => '#15465C'}
-              nodeColor={node => node.isDark ? '#B58863' : '#F0D9B5'}
-              nodeVal={2} // Make nodes bigger
               nodeThreeObject={node => {
-                const sprite = new SpriteText(node.id);
-                sprite.color = '#000000'; // Always black text
-                sprite.textHeight = 8;
-                return sprite;
+                // Create sphere with transparency
+                const sphere = new Mesh(
+                  new SphereGeometry(3.5),
+                  new MeshLambertMaterial({
+                    color: node.isDark ? '#B58863' : '#F0D9B5',
+                    transparent: true,
+                    opacity: 0.4,
+                    side: DoubleSide                    
+                  })
+                );
+                
+                // Create text label at same position as sphere
+                const label = new SpriteText(node.id);
+                label.color = '#000000';
+                label.textHeight = 6;
+                label.renderOrder = 2; // Render after spheres
+                label.material.depthTest = false; // Always render on top
+                label.material.depthWrite = false; // Don't write to depth buffer
+                
+                // Add label as child of sphere
+                sphere.add(label);
+                return sphere;
               }}
             />
           </div>

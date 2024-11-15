@@ -49,6 +49,9 @@ declare module 'cytoscape' {
     gravity?: number;
     gravityRange?: number;
     idealInterClusterEdgeLengthCoefficient?: number;
+    // Dagre layout options
+    rankDir?: 'TB' | 'BT' | 'LR' | 'RL';
+    ranker?: 'network-simplex' | 'tight-tree' | 'longest-path';
   }
 }
 

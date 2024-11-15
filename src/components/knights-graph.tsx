@@ -10,6 +10,8 @@ import elk from 'cytoscape-elk';
 import fcose from 'cytoscape-fcose';
 import klay from 'cytoscape-klay';
 import cise from 'cytoscape-cise';
+import ForceGraph3D from 'react-force-graph-3d';
+import SpriteText from 'three-spritetext';
 
 import { Card } from '@/components/ui/card';
 
@@ -58,7 +60,7 @@ interface Link {
   }
 }
 
-type LayoutName = 'chessboard' | 'cose' | 'cose-bilkent' | 'cola' | 'cise' | 'avsdf' | 'dagre' | 
+type LayoutName = '3d-force' | 'chessboard' | 'cose' | 'cose-bilkent' | 'cola' | 'cise' | 'avsdf' | 'dagre' | 
                  'breadthfirst' | 'concentric' | 'elk-box' | 'elk-disco' | 'elk-layered' | 'elk-mrtree' | 'elk-stress' |
                  'fcose' | 'klay' | 'random';
 
@@ -68,10 +70,12 @@ const KnightsGraph = () => {
   const [layout, setLayout] = useState<LayoutName>('chessboard');
   const [edgeStyle, setEdgeStyle] = useState<'straight' | 'haystack' | 'bezier' | 'unbundled-bezier' | 'segments' | 'taxi'>('straight');
   const [showArrows, setShowArrows] = useState(false);
+  const [graphData, setGraphData] = useState<{ nodes: any[], links: any[] }>({ nodes: [], links: [] });
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const applyLayout = useCallback(() => {
     const cy = cyRef.current;
-    if (!cy) return;
+    if (!cy || layout === '3d-force') return;
 
     if (layout === 'chessboard') {
       const positions: {[key: string]: {x: number, y: number}} = {};
@@ -141,8 +145,7 @@ const KnightsGraph = () => {
         nodeDimensionsIncludeLabels: true
       }).run();
     }
-    else {
-      // For other layouts (cose, breadthfirst, fcose, klay, random, avsdf)
+    else if (['cose', 'breadthfirst', 'fcose', 'klay', 'random', 'avsdf', 'concentric'].includes(layout)) {
       const commonOptions = {
         name: layout,
         fit: true,
@@ -255,6 +258,43 @@ const KnightsGraph = () => {
     };
   }, []);
 
+  // Add this after the existing useEffect that initializes Cytoscape
+  useEffect(() => {
+    // Create 3D graph data
+    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+    const ranks = ['1', '2', '3', '4', '5', '6', '7', '8'];
+    
+    const nodes = [];
+    const links = [];
+
+    for (let i = 0; i < 8; i++) {
+      for (let j = 0; j < 8; j++) {
+        nodes.push({
+          id: `${files[i]}${ranks[j]}`,
+          isDark: (i + j) % 2 === 0,
+          color: (i + j) % 2 === 0 ? '#B58863' : '#F0D9B5'
+        });
+      }
+    }
+
+    const dirs = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
+    nodes.forEach((node) => {
+      const file = files.indexOf(node.id[0]);
+      const rank = ranks.indexOf(node.id[1]);
+
+      dirs.forEach(([df, dr]) => {
+        const newFile = file + df;
+        const newRank = rank + dr;
+        if (newFile >= 0 && newFile < 8 && newRank >= 0 && newRank < 8) {
+          const target = `${files[newFile]}${ranks[newRank]}`;
+          links.push({ source: node.id, target: target });
+        }
+      });
+    });
+
+    setGraphData({ nodes, links });
+  }, []);
+
   // Apply layout when it changes
   useEffect(() => {
     if (cyRef.current) {
@@ -270,7 +310,7 @@ const KnightsGraph = () => {
   }, [updateEdgeStyle]);
 
   return (
-    <Card className="p-4 w-full max-w-3xl mx-auto">
+    <Card className={`p-4 ${isFullscreen ? 'fixed inset-0 z-50' : 'w-full max-w-3xl mx-auto'}`}>
       <div className="text-center mb-4">
         <h2 className="text-2xl font-bold">Knight&apos;s Move Graph (with cytoscape.js)</h2>
         <p className="text-sm text-gray-600">Visualization of possible knight moves on a chess board</p>
@@ -283,6 +323,7 @@ const KnightsGraph = () => {
           onChange={(e) => setLayout(e.target.value as LayoutName)}
           className="border rounded px-2 py-1"
         >
+          <option value="3d-force">3D Force</option>
           <option value="chessboard">Chessboard</option>
           <option value="random">Random</option>
           <option value="fcose">fCoSE</option>
@@ -327,11 +368,49 @@ const KnightsGraph = () => {
         />
         <label htmlFor="show-arrows">Show Arrow Heads</label>
       </div>
-      <div 
-        ref={containerRef}
-        id="cy" 
-        style={{ width: '700px', height: '700px', border: '1px solid #ccc' }}
-      />
+      <div className="mb-4 text-center">
+        <button
+          onClick={() => setIsFullscreen(!isFullscreen)}
+          className="border rounded px-4 py-1 bg-gray-100 hover:bg-gray-200"
+        >
+          {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+        </button>
+      </div>
+
+      <div style={{ 
+        width: isFullscreen ? '100%' : '700px',
+        height: isFullscreen ? 'calc(100vh - 200px)' : '700px'
+      }}>
+        <div 
+          ref={containerRef}
+          id="cy" 
+          style={{ 
+            width: '100%', 
+            height: '100%', 
+            border: '1px solid #ccc',
+            display: layout === '3d-force' ? 'none' : 'block'
+          }}
+        />
+        
+        {layout === '3d-force' && (
+          <div style={{ width: '100%', height: '100%', border: '1px solid #ccc' }}>
+            <ForceGraph3D
+              graphData={graphData}
+              nodeLabel="id"
+              backgroundColor="#ffffff"
+              linkColor={() => '#15465C'}
+              nodeColor={node => node.isDark ? '#B58863' : '#F0D9B5'}
+              nodeVal={2} // Make nodes bigger
+              nodeThreeObject={node => {
+                const sprite = new SpriteText(node.id);
+                sprite.color = '#000000'; // Always black text
+                sprite.textHeight = 8;
+                return sprite;
+              }}
+            />
+          </div>
+        )}
+      </div>
     </Card>
   );
 };

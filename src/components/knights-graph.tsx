@@ -266,7 +266,10 @@ const KnightsGraph = () => {
       cy.layout({
         name: 'preset',
         positions: positions,
-        fit: true
+        fit: true,
+        animate: true, // Enable animation
+        animationDuration: 1000, // Set animation duration
+        animationEasing: 'ease-in-out' // Set animation easing
       }).run();
     } 
     else if (layout === 'elk-layered') {
@@ -737,11 +740,11 @@ const KnightsGraph = () => {
           <option value="cose">Cose</option>
           <option value="cose-bilkent">Cose-Bilkent</option>
           <option value="dagre">Dagre</option>
-          <option value="elk-box">ELK (box)</option>
-          {/*<option value="elk-disco">ELK (Disco)</option>*/}
-          <option value="elk-layered">ELK (layered)</option>
-          <option value="elk-mrtree">ELK (mrtree)</option>
-          <option value="elk-stress">ELK (stress)</option>
+          <option value="elk-box">Box (ELK)</option>
+          {/*<option value="elk-disco">Disco (ELK)</option>*/}
+          <option value="elk-layered">Layered (ELK)</option>
+          <option value="elk-mrtree">MrTree (ELK)</option>
+          <option value="elk-stress">Stress (ELK)</option>
           <option value="klay">Klay</option>
           <option value="cise-whole">CiSE (whole)</option>
           <option value="cise-quarters">CiSE (quarters)</option>

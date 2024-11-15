@@ -5,8 +5,8 @@ import Cytoscape from 'cytoscape';
 import { Card } from '@/components/ui/card';
 import dynamic from 'next/dynamic';
 import SpriteText from 'three-spritetext';
-import { Mesh, SphereGeometry, MeshLambertMaterial, DoubleSide } from 'three';
-import type { Mesh as MeshType, SphereGeometry as SphereGeometryType, MeshLambertMaterial as MeshLambertMaterialType, DoubleSide as DoubleSideType } from 'three';
+import { Mesh, SphereGeometry, BoxGeometry, MeshLambertMaterial, DoubleSide } from 'three';
+import type { Mesh as MeshType, SphereGeometry as SphereGeometryType, BoxGeometry as BoxGeometryType, MeshLambertMaterial as MeshLambertMaterialType, DoubleSide as DoubleSideType } from 'three';
 
 // Dynamic imports for Cytoscape extensions
 const layoutExtensions = {
@@ -87,8 +87,8 @@ interface Link {
 // Update LayoutName type to include new variants
 type LayoutName = '3d-force' | 'chessboard' | 'cose' | 'cose-bilkent' | 'cola' | 
                  'cise-ranks' | 'cise-quarters' | 'cise-whole' | 'cise-colors' | 'cise-singles' | 
-                 'avsdf' | 'dagre' | 'breadthfirst' | 'concentric' | 'elk-box' | 
-                 'elk-disco' | 'elk-layered' | 'elk-mrtree' | 'elk-stress' |
+                 'avsdf' | 'dagre' | 'breadthfirst' | 'breadthfirst-circle' | 'concentric' |
+                 'elk-box' | 'elk-disco' | 'elk-layered' | 'elk-mrtree' | 'elk-stress' |
                  'fcose' | 'klay' | 'random';
 
 const KnightsGraph = () => {
@@ -387,7 +387,26 @@ const KnightsGraph = () => {
         aspectRatio: 1,
       }).run();
     }
-    else if (['cose', 'breadthfirst', 'fcose', 'random', 'concentric'].includes(layout)) {
+    else if (layout === 'breadthfirst') {
+      cy.layout({
+        ...defaultSettings,
+        name: 'breadthfirst',
+        directed: false,
+        grid: true,
+        circle: false,
+        avoidOverlap: true,
+      }).run();
+    }
+    else if (layout === 'breadthfirst-circle') {
+      cy.layout({
+        ...defaultSettings,
+        name: 'breadthfirst',
+        directed: false,
+        circle: true,
+        avoidOverlap: true,
+      }).run();
+    }
+    else if (['cose', 'fcose', 'random', 'concentric'].includes(layout)) {
       cy.layout({
         ...defaultSettings,
         name: layout,
@@ -658,6 +677,7 @@ const KnightsGraph = () => {
     }
   }, [edgeStyle, showArrows, updateEdgeStyle]);
 
+  const useCube = false;
   const Force3DGraph = layout === '3d-force' ? (
     <div style={{ width: '100%', height: '100%', border: '1px solid #ccc' }} className="force-graph-3d">
       <ForceGraph3D
@@ -665,30 +685,27 @@ const KnightsGraph = () => {
         graphData={graphData}
         enableNodeDrag={false}
         showNavInfo={false}
-        /*
-        onEnter={(engine) => {
-          engine.controls().enableDamping = true;
-          engine.controls().dampingFactor = 0.1;
-          engine.controls().rotateSpeed = 0.7;
-        }}
-        */
         nodeLabel="id"
         backgroundColor="#ffffff"
         linkColor={() => '#15465C'}
+        linkWidth={1.1}
         nodeThreeObject={node => {
           const sphere = new Mesh(
-            new SphereGeometry(nodeSize / 10), // Adjust sphere size proportionally
+            (useCube) ? 
+              new BoxGeometry(nodeSize / 10, nodeSize / 10, nodeSize / 10) :
+              new SphereGeometry(nodeSize / 10),
             new MeshLambertMaterial({
               color: node.isDark ? '#B58863' : '#F0D9B5',
-              transparent: true,
-              opacity: 0.4,
+              //transparent: true,
+              //opacity: 0.5,
               side: DoubleSide
             })
           );
           
           const label = new SpriteText(node.id as string);
           label.color = '#000000';
-          label.textHeight = nodeSize / 5; // Adjust text height proportionally
+          //label.color = node.isDark ? '#FFFFFF' : '#000000';
+          label.textHeight = nodeSize / 7; // Adjust text height proportionally
           label.renderOrder = 2;
           label.material.depthTest = false;
           label.material.depthWrite = false;
@@ -734,7 +751,8 @@ const KnightsGraph = () => {
           <option value="random">Random</option>
           <option value="fcose">fCoSE</option>
           <option value="avsdf">Avsdf</option>
-          <option value="breadthfirst">Breadthfirst</option>
+          <option value="breadthfirst">Breadthfirst (grid)</option>
+          <option value="breadthfirst-circle">Breadthfirst (circle)</option>
           <option value="cola">Cola</option>
           <option value="concentric">Concentric</option>
           <option value="cose">Cose</option>
@@ -786,7 +804,7 @@ const KnightsGraph = () => {
           type="range"
           id="node-size-slider"
           min="10"
-          max="100"
+          max="200"
           value={nodeSize}
           onChange={(e) => setNodeSize(Number(e.target.value))}
           className="border rounded px-2 py-1"

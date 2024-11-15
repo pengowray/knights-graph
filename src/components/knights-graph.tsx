@@ -16,17 +16,7 @@ import { Mesh, SphereGeometry, MeshLambertMaterial, DoubleSide } from 'three';
 
 import { Card } from '@/components/ui/card';
 
-// Register Cytoscape extensions
-if (typeof window !== 'undefined') {
-  coseBilkent(Cytoscape);
-  cola(Cytoscape);
-  avsdf(Cytoscape);
-  dagre(Cytoscape);
-  elk(Cytoscape);
-  fcose(Cytoscape);
-  klay(Cytoscape);
-  cise(Cytoscape);
-}
+// Remove the global registration
 
 declare module 'cytoscape' {
   interface BaseLayoutOptions {
@@ -183,9 +173,31 @@ const KnightsGraph = () => {
     });
   }, [edgeStyle, showArrows]);
 
+  // Add this new function
+  const registerExtensions = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    
+    if (!Cytoscape.prototype.hasInitializedExtensions) {
+      coseBilkent(Cytoscape);
+      cola(Cytoscape);
+      avsdf(Cytoscape);
+      dagre(Cytoscape);
+      elk(Cytoscape);
+      fcose(Cytoscape);
+      klay(Cytoscape);
+      cise(Cytoscape);
+      
+      // Mark extensions as initialized
+      Cytoscape.prototype.hasInitializedExtensions = true;
+    }
+  }, []);
+
   // Initialize cytoscape instance once on mount
   useEffect(() => {
     if (!containerRef.current) return;
+    
+    // Register extensions before creating Cytoscape instance
+    registerExtensions();
     
     const cy = Cytoscape({
       container: containerRef.current,
@@ -268,7 +280,7 @@ const KnightsGraph = () => {
       cy.destroy();
       cyRef.current = undefined;
     };
-  }, [edgeStyle, showArrows]); // Add these dependencies
+  }, [edgeStyle, showArrows, registerExtensions]); // Add registerExtensions to dependencies
 
   // Add this after the existing useEffect that initializes Cytoscape
   useEffect(() => {
@@ -435,5 +447,12 @@ const KnightsGraph = () => {
     </Card>
   );
 };
+
+// Add this to the Cytoscape type
+declare module 'cytoscape' {
+  interface Core {
+    hasInitializedExtensions?: boolean;
+  }
+}
 
 export default KnightsGraph;

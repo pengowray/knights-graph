@@ -5,7 +5,8 @@ import Cytoscape from 'cytoscape';
 import { Card } from '@/components/ui/card';
 import dynamic from 'next/dynamic';
 import SpriteText from 'three-spritetext';
-import { Mesh, SphereGeometry, BoxGeometry, MeshLambertMaterial, DoubleSide } from 'three';
+import { Mesh, SphereGeometry, BoxGeometry, MeshPhongMaterial, DoubleSide, 
+         DirectionalLight, AmbientLight, PointLight } from 'three';
 import type { Mesh as MeshType, SphereGeometry as SphereGeometryType, BoxGeometry as BoxGeometryType, MeshLambertMaterial as MeshLambertMaterialType, DoubleSide as DoubleSideType } from 'three';
 
 // Dynamic imports for Cytoscape extensions
@@ -486,6 +487,31 @@ const KnightsGraph = () => {
     return shuffled;
   };
 
+  // Add this function after other useCallbacks
+  const setupLights = useCallback((scene: THREE.Scene) => {
+    // Clear any existing lights
+    scene.children = scene.children.filter(child => !(child instanceof DirectionalLight || child instanceof PointLight));
+
+    // Key light (main directional light)
+    const keyLight = new DirectionalLight(0xffffff, 1.2);
+    keyLight.position.set(200, 200, 200);
+    scene.add(keyLight);
+
+    // Fill light (softer light from opposite side)
+    const fillLight = new DirectionalLight(0xffffff, 0.7);
+    fillLight.position.set(-200, 0, -200);
+    scene.add(fillLight);
+
+    // Back light (rim lighting)
+    const backLight = new DirectionalLight(0xffffff, 0.7);
+    backLight.position.set(-100, 200, -100);
+    scene.add(backLight);
+
+    // Ambient light for overall illumination
+    const ambientLight = new AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
+  }, []);
+
   // Initialize cytoscape instance once on mount
   useEffect(() => {
     let cy: Cytoscape.Core | undefined;
@@ -761,6 +787,15 @@ const KnightsGraph = () => {
         backgroundColor="#ffffff"
         linkColor={() => '#15465C'}
         linkWidth={1.1}
+        onEngineTick={() => {
+          if (fgRef.current) {
+            const scene = fgRef.current.scene();
+            if (!scene.userData.lightsSetup) {
+              setupLights(scene);
+              scene.userData.lightsSetup = true;
+            }
+          }
+        }}
         nodeThreeObject={node => {
           const geometry = useCube ? 
             new BoxGeometry(nodeSize / 10, nodeSize / 10, nodeSize / 10) :
@@ -768,11 +803,13 @@ const KnightsGraph = () => {
             
           const sphere = new Mesh(
             geometry,
-            new MeshLambertMaterial({
+            new MeshPhongMaterial({
               color: node.isDark ? '#B58863' : '#F0D9B5',
               //transparent: true,
               //opacity: 0.5,
-              side: DoubleSide
+              side: DoubleSide,
+              shininess: 80,
+              specular: 0x444444
             })
           );
           

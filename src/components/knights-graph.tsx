@@ -8,6 +8,7 @@ import SpriteText from 'three-spritetext';
 import { Mesh, SphereGeometry, BoxGeometry, MeshPhongMaterial, DoubleSide, 
          DirectionalLight, AmbientLight, PointLight } from 'three';
 import type { Mesh as MeshType, SphereGeometry as SphereGeometryType, BoxGeometry as BoxGeometryType, MeshLambertMaterial as MeshLambertMaterialType, DoubleSide as DoubleSideType } from 'three';
+import * as THREE from 'three';
 
 // Dynamic imports for Cytoscape extensions
 const layoutExtensions = {

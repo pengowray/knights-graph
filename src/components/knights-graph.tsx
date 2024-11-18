@@ -6,7 +6,8 @@ import { Card } from '@/components/ui/card';
 import dynamic from 'next/dynamic';
 import SpriteText from 'three-spritetext';
 import { Mesh, SphereGeometry, BoxGeometry, MeshPhongMaterial, DoubleSide, 
-         DirectionalLight, AmbientLight, PointLight } from 'three';
+         DirectionalLight, AmbientLight, PointLight, Fog, 
+         TubeGeometry, CatmullRomCurve3, Vector3, LineBasicMaterial, BufferGeometry, Line } from 'three';
 import type { Mesh as MeshType, SphereGeometry as SphereGeometryType, BoxGeometry as BoxGeometryType, MeshLambertMaterial as MeshLambertMaterialType, DoubleSide as DoubleSideType } from 'three';
 import * as THREE from 'three';
 
@@ -489,9 +490,17 @@ const KnightsGraph = () => {
   };
 
   // Add this function after other useCallbacks
-  const setupLights = useCallback((scene: THREE.Scene) => {
+  const setupLights = useCallback((scene: THREE.Scene, camera: THREE.PerspectiveCamera) => {
     // Clear any existing lights
     scene.children = scene.children.filter(child => !(child instanceof DirectionalLight || child instanceof PointLight));
+
+    // Calculate fog based on camera position and graph size
+    const cameraDistance = camera.position.length();
+    const fogNear = cameraDistance * 0.1;
+    const fogFar = cameraDistance * 2;
+
+    // Update fog with new calculated values
+    scene.fog = new Fog(0xffffff, fogNear, fogFar);
 
     // Key light (main directional light)
     const keyLight = new DirectionalLight(0xffffff, 1.2);
@@ -786,13 +795,14 @@ const KnightsGraph = () => {
         showNavInfo={false}
         nodeLabel="id"
         backgroundColor="#ffffff"
-        linkColor={() => '#15465C'}
-        linkWidth={1.1}
+        linkColor={() => '#112233'} // #8B4513 is saddlebrown
+        linkWidth={1.05}
         onEngineTick={() => {
           if (fgRef.current) {
             const scene = fgRef.current.scene();
+            const camera = fgRef.current.camera();
             if (!scene.userData.lightsSetup) {
-              setupLights(scene);
+              setupLights(scene, camera);
               scene.userData.lightsSetup = true;
             }
           }
@@ -817,6 +827,7 @@ const KnightsGraph = () => {
           const label = new SpriteText(node.id as string);
           //label.color = '#000000';
           label.color = node.isDark ? '#FFFFFF' : '#000000';
+          label.fontWeight = 'bold';
           label.textHeight = nodeSize / 10;
           label.renderOrder = 2;
           label.material.depthTest = false;

@@ -496,8 +496,8 @@ const KnightsGraph = () => {
 
     // Calculate fog based on camera position and graph size
     const cameraDistance = camera.position.length();
-    const fogNear = cameraDistance * 0.1;
-    const fogFar = cameraDistance * 2;
+    const fogNear = cameraDistance * 0.2;
+    const fogFar = cameraDistance * 1.2;
 
     // Update fog with new calculated values
     scene.fog = new Fog(0xffffff, fogNear, fogFar);
@@ -534,8 +534,8 @@ const KnightsGraph = () => {
       cy = Cytoscape({
         container: containerRef.current,
         style: [],  // Empty initial style
-        wheelSensitivity: 0.2,
-        minZoom: 0.1,
+        wheelSensitivity: 0.05,
+        minZoom: 0.5,
         maxZoom: 2
       });
 

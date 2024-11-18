@@ -457,7 +457,7 @@ const KnightsGraph = () => {
           'text-valign': 'center',
           'text-halign': 'center',
           'text-margin-y': 0,
-          'background-color': (ele: Cytoscape.NodeSingular) => (ele.data('isDark') ? '#B58863' : '#F0D9B5'),
+          'background-color': (ele: Cytoscape.NodeSingular) => (ele.data('isDark') ? '#8B4513' : '#F0D9B5'),
           'color': (ele: Cytoscape.NodeSingular) => (ele.data('isDark') ? 'white' : 'black'),
           'border-color': '#262D31',
           'border-width': 1,
@@ -496,8 +496,8 @@ const KnightsGraph = () => {
 
     // Calculate fog based on camera position and graph size
     const cameraDistance = camera.position.length();
-    const fogNear = cameraDistance * 0.2;
-    const fogFar = cameraDistance * 1.2;
+    const fogNear = cameraDistance * 0.6;
+    const fogFar = cameraDistance * 2.2;
 
     // Update fog with new calculated values
     scene.fog = new Fog(0xffffff, fogNear, fogFar);
@@ -534,9 +534,9 @@ const KnightsGraph = () => {
       cy = Cytoscape({
         container: containerRef.current,
         style: [],  // Empty initial style
-        wheelSensitivity: 0.05,
-        minZoom: 0.5,
-        maxZoom: 2
+        wheelSensitivity: 0.1,
+        minZoom: 0.02,
+        maxZoom: 3
       });
 
       initializeStyles(cy);  // Apply base styles
@@ -613,7 +613,7 @@ const KnightsGraph = () => {
         nodes.push({
           id: `${files[i]}${ranks[j]}`,
           isDark: (i + j) % 2 === 0,
-          color: (i + j) % 2 === 0 ? '#B58863' : '#F0D9B5'
+          color: (i + j) % 2 === 0 ? '#8B4513' : '#F0D9B5'
         });
       }
     }
@@ -663,14 +663,14 @@ const KnightsGraph = () => {
 
     const interval = setInterval(() => {
       if (!fgRef || !fgRef.current) return;
-      const angle = Date.now() * 2 * Math.PI / 10000; // Full rotation in 10 seconds
+      const angle = Date.now() * 2 * Math.PI / 15000; // Full rotation in 15 seconds
       const distance = cameraDistance || fgRef.current.camera().position.length();
       fgRef.current.cameraPosition({
         x: distance * Math.cos(angle),
         y: distance * Math.sin(angle),
         z: distance
       });
-    }, 16);
+    }, 16.667); // 0.01666 = 60fps
 
     return () => {
       clearInterval(interval);
@@ -793,7 +793,9 @@ const KnightsGraph = () => {
           node.fz = node.z;
         }}
         showNavInfo={false}
-        nodeLabel="id"
+        //nodeLabel={node => `Links: ${graphData.links.filter(link => link.source === node.id || link.target === node.id).length}`}
+        //nodeLabel={node => `${graphData.links.filter(link => link.source === node.id).length}`}
+        nodeLabel=''
         backgroundColor="#ffffff"
         linkColor={() => '#112233'} // #8B4513 is saddlebrown
         linkWidth={1.05}
@@ -815,7 +817,7 @@ const KnightsGraph = () => {
           const sphere = new Mesh(
             geometry,
             new MeshPhongMaterial({
-              color: node.isDark ? '#B58863' : '#F0D9B5',
+              color: node.isDark ? '#8B4513' : '#F0D9B5',
               //transparent: true,
               //opacity: 0.5,
               side: DoubleSide,
@@ -838,7 +840,7 @@ const KnightsGraph = () => {
             if (!fgRef.current) return;
             const camera = fgRef.current.camera();
             const distance = camera.position.distanceTo(sphere.position);
-            const maxDistance = 600; // Adjust this value based on your graph scale
+            const maxDistance = 1200;
             const opacity = Math.max(0.5, 1 - (distance / maxDistance));
             label.material.opacity = opacity;
           };
